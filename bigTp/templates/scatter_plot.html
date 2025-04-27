@@ -1,0 +1,4 @@
+{% if scatter_image %}
+    <h2>Scatter Plot</h2>
+    <img src="{{ url_for('static', filename=scatter_image) }}?v={{ time() }}" alt="Scatter Plot" class="img-fluid">
+{% endif %}

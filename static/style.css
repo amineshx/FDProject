@@ -1,0 +1,22 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 30px;
+    font-size: xx-large;
+}
+
+h1 {
+    color: #a81f1f;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+.success {
+    color: green;
+}
+
+.error {
+    color: red;
+}

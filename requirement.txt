@@ -1,0 +1,8 @@
+flask
+flask-wtf
+wtforms
+pandas
+numpy
+scikit-learn
+kneed
+seaborn
