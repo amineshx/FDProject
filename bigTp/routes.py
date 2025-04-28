@@ -1,14 +1,23 @@
-from flask import render_template, request, redirect, url_for, flash, session
+from flask import render_template, request, redirect, flash, session,send_file
+import io
 from bigTp import app
 import os
 import time
 import pandas as pd
+from scipy.spatial.distance import pdist, squareform
+from sklearn.decomposition import PCA
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans, DBSCAN
+from scipy.cluster.hierarchy import linkage, dendrogram
+from sklearn.cluster import AgglomerativeClustering
+from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')  # Use a non-interactive backend
+from matplotlib import rcParams
+rcParams['font.family'] = 'DejaVu Sans'
+
 
 UPLOAD_FOLDER = 'bigTp/uploads'  # We'll create this folder
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -139,6 +148,430 @@ def select_and_plot_scatter(data, col1, col2):
     print(f"Saving scatter.png to: {scatter_path}")
     return scatter_path
 
+def evaluate_clustering_metrics(data, labels):
+    """
+    Calcule et affiche le coefficient de silhouette.
+
+    Paramètres :
+    - data : données normalisées (array ou DataFrame)
+    - labels : labels de clustering (liste ou array)
+
+    Retour :
+    - silhouette : score entre -1 et 1
+    """
+    silhouette = silhouette_score(data, labels)
+    print(f"🟩 Coefficient de Silhouette : {silhouette:.3f}")
+    return silhouette
+
+def compute_clustering_metrics(data, labels, display=True):
+    """
+    Calcule et affiche les principales métriques de qualité pour un clustering.
+
+    Paramètres :
+    - data : données normalisées (numpy array ou DataFrame)
+    - labels : labels prédits (array)
+    - display : bool, si True, affiche les résultats
+
+    Retour :
+    - metrics_dict : dictionnaire contenant les scores
+    """
+    metrics_dict = {}
+
+    metrics_dict["Silhouette Score"] = silhouette_score(data, labels)
+    metrics_dict["Davies-Bouldin Index"] = davies_bouldin_score(data, labels)
+    metrics_dict["Calinski-Harabasz Index"] = calinski_harabasz_score(data, labels)
+
+    if display:
+        print("📊 Métriques de Clustering :")
+        for key, value in metrics_dict.items():
+            print(f"  - {key}: {value:.3f}")
+
+    return metrics_dict
+
+def apply_kmeans_show_classes(df, data, n_clusters, class_col_candidates=['Classe', 'Species', 'target']):
+    """
+    Applique K-Means sur les données normalisées, affiche la visualisation et ajoute la vraie classe si disponible.
+
+    Paramètres :
+    - df : DataFrame original (non normalisé, contient potentiellement la classe)
+    - data : données normalisées (array ou DataFrame sans la classe)
+    - n_clusters : nombre de clusters
+    - class_col_candidates : liste des noms possibles de la colonne contenant les vraies classes
+
+    Retour :
+    - df_clustered : DataFrame contenant les données, les clusters, et la classe réelle (si trouvée)
+    - metrics_dict : dictionnaire contenant les scores de clustering
+    """
+    # Convertir en DataFrame si data est un array
+    if not isinstance(data, pd.DataFrame):
+        data = pd.DataFrame(data, columns=df.select_dtypes(include=['float64', 'int64']).columns)
+
+    # Appliquer KMeans
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+    labels = kmeans.fit_predict(data)
+
+    # Création du DataFrame final
+    df_clustered = data.copy()
+    df_clustered["Cluster"] = labels
+
+    # Chercher une colonne de classe dans le DataFrame original
+    for col in class_col_candidates:
+        if col in df.columns:
+            df_clustered["Classe"] = df[col].values
+            break  # on ajoute la première trouvée
+
+    # Calculer les métriques de clustering
+    metrics_dict = compute_clustering_metrics(data, labels, display=True)
+
+    # Affichage : scatter plot sur les 2 premières dimensions
+    plt.figure(figsize=(8, 6))
+    scatter = plt.scatter(data.iloc[:, 0], data.iloc[:, 1], c=labels, cmap='viridis', edgecolor='k', label='Clusters')
+    plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1],
+                c='red', s=200, marker='X', label='Centroïdes')
+    plt.xlabel(data.columns[0])
+    plt.ylabel(data.columns[1])
+    plt.title(f"K-Means Clustering (k={n_clusters})")
+    plt.legend()
+    plt.grid(True)
+
+    # Save the figure to the static directory
+    static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static')
+    os.makedirs(static_dir, exist_ok=True)
+    kmeans_path = os.path.join(static_dir, 'kmeans.png')
+    plt.savefig(kmeans_path)
+    plt.close()
+    print(f"Saving kmeans.png to: {kmeans_path}")
+
+    return df_clustered, metrics_dict, 'kmeans.png'
+
+def apply_agnes_and_plot_dendrogram(data, n_clusters=3, method='ward'):
+    """
+    Applique AGNES et affiche le dendrogramme avec une ligne de coupe.
+
+    Paramètres :
+    - data : numpy array normalisé
+    - n_clusters : nombre de clusters à créer
+    - method : méthode de linkage ('ward', 'single', 'complete', 'average')
+
+    Retour :
+    - labels : clusters assignés
+    """
+    # 1. Créer la matrice de liaison
+    linked = linkage(data, method=method)
+
+    # 2. Tracer le dendrogramme
+    plt.figure(figsize=(10, 5))
+    dendrogram(linked, orientation='top', distance_sort='descending', show_leaf_counts=True)
+    
+    # 🔴 Ajouter la ligne de coupe correspondant au nombre de clusters
+    max_d = linked[-(n_clusters - 1), 2]  # Hauteur où les derniers clusters fusionnent
+    plt.axhline(y=max_d, color='red', linestyle='--', label=f'{n_clusters} clusters')
+    plt.legend()
+
+    plt.title(f"Dendrogramme AGNES (méthode = {method})")
+    plt.xlabel("Index des points")
+    plt.ylabel("Distance")
+    plt.tight_layout()
+
+    # Save the dendrogram to the static directory
+    static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static')
+    os.makedirs(static_dir, exist_ok=True)
+    dendrogram_path = os.path.join(static_dir, 'agnes_dendrogram.png')
+    plt.savefig(dendrogram_path)
+    plt.close()
+    print(f"Saving agnes_dendrogram.png to: {dendrogram_path}")
+
+    # 3. Clustering
+    model = AgglomerativeClustering(n_clusters=n_clusters, linkage=method)
+    labels = model.fit_predict(data)
+
+    return labels, 'agnes_dendrogram.png'
+
+def diana_clustering(data, n_clusters=3):
+    """
+    Implémentation de l'algorithme DIANA (DIvisive ANAlysis Clustering).
+    """
+    n_samples = data.shape[0]
+    
+    # Initialiser avec tous les points dans un seul cluster
+    current_labels = np.zeros(n_samples, dtype=int)
+    
+    # Liste pour suivre les clusters à diviser
+    clusters_to_process = [np.arange(n_samples)]
+    
+    # Continuer jusqu'à obtenir le nombre souhaité de clusters
+    next_label = 1
+    
+    while len(clusters_to_process) < n_clusters:
+        # Choisir le cluster avec la plus grande dispersion
+        max_dispersion = -1
+        selected_cluster_idx = -1
+        
+        for i, cluster_indices in enumerate(clusters_to_process):
+            if len(cluster_indices) <= 1:
+                continue  # Ne pas diviser les clusters avec un seul point
+                
+            # Calculer la matrice de distance pour ce cluster
+            cluster_data = data[cluster_indices]
+            dist_matrix = squareform(pdist(cluster_data, metric='euclidean'))
+            
+            # Calculer la dispersion (somme des distances intra-cluster)
+            dispersion = np.sum(dist_matrix) / 2  # Diviser par 2 car la matrice est symétrique
+            
+            if dispersion > max_dispersion:
+                max_dispersion = dispersion
+                selected_cluster_idx = i
+        
+        if selected_cluster_idx == -1:
+            break  # Aucun cluster divisible trouvé
+        
+        # Diviser le cluster sélectionné
+        cluster_to_split = clusters_to_process[selected_cluster_idx]
+        cluster_data = data[cluster_to_split]
+        
+        if len(cluster_to_split) <= 2:
+            # Si le cluster n'a que 2 points, simplement les séparer
+            splitter_a = [cluster_to_split[0]]
+            splitter_b = cluster_to_split[1:]
+        else:
+            # Trouver le point le plus éloigné du centre
+            center = np.mean(cluster_data, axis=0)
+            distances_to_center = np.linalg.norm(cluster_data - center, axis=1)
+            splitter_idx = np.argmax(distances_to_center)
+            
+            # Initialiser les deux sous-clusters
+            splitter_a = [cluster_to_split[splitter_idx]]
+            splitter_b = [idx for i, idx in enumerate(cluster_to_split) if i != splitter_idx]
+            
+            # Réaffecter les points en fonction de leur similitude
+            changes = True
+            while changes and len(splitter_b) > 0:
+                changes = False
+                
+                # Calculer les distances moyennes de chaque point au splitter_a
+                subset_a = data[splitter_a]
+                subset_b = data[splitter_b]
+                
+                # Pour chaque point dans splitter_b, vérifier s'il devrait être déplacé vers splitter_a
+                for i, point_idx in enumerate(splitter_b[:]):
+                    point = data[point_idx].reshape(1, -1)
+                    
+                    if len(splitter_a) == 0:
+                        continue
+                        
+                    # Calculer la distance moyenne au groupe A
+                    avg_dist_a = np.mean(np.linalg.norm(subset_a - point, axis=1))
+                    
+                    # Calculer la distance moyenne au reste du groupe B
+                    remaining_b = np.delete(subset_b, i, axis=0)
+                    if len(remaining_b) > 0:
+                        avg_dist_b = np.mean(np.linalg.norm(remaining_b - point, axis=1))
+                    else:
+                        avg_dist_b = float('inf')  # Si B est vide, considérer comme distance infinie
+                    
+                    # Si le point est plus proche du groupe A, le déplacer
+                    if avg_dist_a < avg_dist_b:
+                        splitter_a.append(point_idx)
+                        splitter_b.remove(point_idx)
+                        subset_a = data[splitter_a]
+                        subset_b = data[splitter_b] if len(splitter_b) > 0 else np.array([])
+                        changes = True
+                        break  # Recommencer le processus
+        
+        # Mettre à jour les labels
+        current_labels[splitter_a] = next_label
+        next_label += 1
+        
+        # Mettre à jour la liste des clusters
+        clusters_to_process.pop(selected_cluster_idx)
+        clusters_to_process.append(np.array(splitter_a))
+        clusters_to_process.append(np.array(splitter_b))
+    
+    return current_labels
+
+def visualize_diana_clustering(data, n_clusters=3):
+    """
+    Applique l'algorithme DIANA et visualise les clusters.
+    
+    Paramètres:
+    - data: numpy array normalisé
+    - n_clusters: nombre de clusters à créer
+    
+    Retourne:
+    - labels: résultat du clustering
+    """
+    # Appliquer DIANA
+    labels = diana_clustering(data, n_clusters)
+    
+    # Visualiser les clusters en 2D
+    plot_clusters_2d(data, labels, title=f"DIANA Clustering avec {n_clusters} clusters")
+    
+    # Afficher la distribution des points par cluster
+    unique_labels, counts = np.unique(labels, return_counts=True)
+    print(f"Distribution des points par cluster:")
+    for label, count in zip(unique_labels, counts):
+        print(f"Cluster {label}: {count} points")
+    
+    return labels
+
+def plot_clusters_2d(data, labels, title="Visualisation des clusters"):
+    """
+    Visualise les clusters en 2D après réduction dimensionnelle.
+    """
+    # Réduction dimensionnelle avec PCA si nécessaire
+    if data.shape[1] > 2:
+        pca = PCA(n_components=2)
+        data_2d = pca.fit_transform(data)
+        explained_var = pca.explained_variance_ratio_
+        print(f"Variance expliquée par les 2 premières composantes: {sum(explained_var)*100:.2f}%")
+    else:
+        data_2d = data
+    
+    # Obtenir le nombre de clusters uniques
+    unique_labels = np.unique(labels)
+    n_clusters = len(unique_labels)
+    
+    # Définir une palette de couleurs
+    colors = plt.cm.tab10(np.linspace(0, 1, n_clusters))
+    
+    # Tracer les points
+    plt.figure(figsize=(10, 8))
+    for i, color in zip(unique_labels, colors):
+        cluster_points = data_2d[labels == i]  # Ensure this is used only for indexing
+        plt.scatter(
+            cluster_points[:, 0],
+            cluster_points[:, 1],
+            s=50, c=[color], 
+            label=f'Cluster {i}'
+        )
+    
+    plt.title(title, fontsize=15)
+    plt.xlabel("Composante 1" if data.shape[1] > 2 else "Dimension 1")
+    plt.ylabel("Composante 2" if data.shape[1] > 2 else "Dimension 2")
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    plt.show()
+
+@app.route('/apply_diana', methods=['POST'])
+def apply_diana():
+    try:
+        # Get the number of clusters from the form
+        n_clusters = int(request.form['n_clusters'])
+
+        # Reload the dataset from the session
+        filepath = session.get('uploaded_file')
+        if not filepath:
+            return "No dataset found. Please upload a dataset first.", 400
+
+        df, data = load_dataset(filepath, normalize=True)
+
+        # Apply DIANA clustering
+        labels = diana_clustering(data, n_clusters)
+
+        # Visualize the clustering
+        static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static')
+        os.makedirs(static_dir, exist_ok=True)
+        diana_image_path = os.path.join(static_dir, 'diana.png')
+        plot_clusters_2d(data, labels, title=f"DIANA Clustering with {n_clusters} Clusters")
+        plt.savefig(diana_image_path)
+        plt.close()
+
+        # Return the partial template for DIANA results
+        return render_template(
+            'diana_partial.html',
+            diana_image='diana.png',
+            labels=dict(zip(*np.unique(labels, return_counts=True))),
+            time=time.time()  # Pass the current timestamp
+        )
+    except Exception as e:
+        return str(e), 500
+    
+@app.route('/apply_agnes', methods=['POST'])
+def apply_agnes():
+    try:
+        # Get the number of clusters and linkage method from the form
+        n_clusters = int(request.form['n_clusters'])
+        method = request.form.get('method', 'ward')  # Default to 'ward'
+
+        # Reload the dataset from the session
+        filepath = session.get('uploaded_file')
+        if not filepath:
+            return "No dataset found. Please upload a dataset first.", 400
+
+        df, data = load_dataset(filepath, normalize=True)
+
+        # Apply AGNES and generate the dendrogram
+        labels, dendrogram_image = apply_agnes_and_plot_dendrogram(data, n_clusters, method)
+
+        # Return the partial template for AGNES results
+        return render_template(
+            'agnes_partial.html',
+            dendrogram_image=dendrogram_image,
+            labels=dict(zip(*np.unique(labels, return_counts=True))),
+            time=time.time()  # Pass the current timestamp
+        )
+    except Exception as e:
+        return str(e), 500
+    
+@app.route('/download_clustered_data', methods=['GET'])
+def download_clustered_data():
+    try:
+        # Reload the dataset from the session
+        filepath = session.get('uploaded_file')
+        if not filepath:
+            return "No dataset found. Please upload a dataset first.", 400
+
+        # Load the dataset and normalize it
+        df, data = load_dataset(filepath, normalize=True)
+
+        # Apply K-Means clustering (default to 3 clusters for simplicity)
+        n_clusters = session.get('n_clusters', 3)  # Use the last selected number of clusters
+        df_clustered, _ = apply_kmeans_show_classes(df, data, n_clusters)
+
+        # Save the clustered data to a CSV in memory
+        output = io.StringIO()
+        df_clustered.to_csv(output, index=False)
+        output.seek(0)
+
+        # Serve the CSV file as a download
+        return send_file(
+            io.BytesIO(output.getvalue().encode()),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name='clustered_data.csv'
+        )
+    except Exception as e:
+        return str(e), 500
+
+
+@app.route('/apply_kmeans', methods=['POST'])
+def apply_kmeans():
+    try:
+        # Get the number of clusters from the form
+        n_clusters = int(request.form['n_clusters'])
+        session['n_clusters'] = n_clusters  # Store the number of clusters in the session
+
+        # Reload the dataset from the session
+        filepath = session.get('uploaded_file')
+        if not filepath:
+            return "No dataset found. Please upload a dataset first.", 400
+
+        df, data = load_dataset(filepath, normalize=True)
+
+        # Apply K-Means and generate the clustering visualization
+        df_clustered, metrics_dict, kmeans_image = apply_kmeans_show_classes(df, data, n_clusters)
+
+        # Return the partial template for K-Means results
+        return render_template(
+            'kmeans_partial.html',
+            kmeans_image=kmeans_image,
+            clustered_data=df_clustered.to_html(classes='table table-striped', index=False),
+            metrics=metrics_dict,
+            time=time.time
+        )
+    except Exception as e:
+        return str(e), 500
 
 @app.route('/generate_scatter', methods=['POST'])
 def generate_scatter():

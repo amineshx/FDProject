@@ -1,0 +1,21 @@
+{% if kmeans_image %}
+    <h2>Clustering Visualization</h2>
+    <img src="{{ url_for('static', filename=kmeans_image) }}?v={{ time() }}" alt="K-Means Clustering" class="img-fluid">
+{% endif %}
+
+{% if metrics %}
+    <h2 class="mt-5">Clustering Metrics</h2>
+    <ul>
+        {% for key, value in metrics.items() %}
+            <li><strong>{{ key }}:</strong> {{ value|round(3) }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+{% if clustered_data %}
+    <h2 class="mt-5">Clustered Data</h2>
+    <div class="table-responsive">
+        {{ clustered_data|safe }}
+    </div>
+    <a href="{{ url_for('download_clustered_data') }}" class="btn btn-success mt-3">Download Clustered Data</a>
+{% endif %}

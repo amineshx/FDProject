@@ -1,0 +1,13 @@
+{% if dendrogram_image %}
+    <h2>AGNES Dendrogram</h2>
+    <img src="{{ url_for('static', filename=dendrogram_image) }}?v={{ time }}" alt="AGNES Dendrogram" class="img-fluid">
+{% endif %}
+
+{% if labels %}
+    <h2 class="mt-5">Cluster Distribution</h2>
+    <ul>
+        {% for label, count in labels.items() %}
+            <li><strong>Cluster {{ label }}:</strong> {{ count }} points</li>
+        {% endfor %}
+    </ul>
+{% endif %}

@@ -96,34 +96,94 @@
     </div>
 {% endif %}
 
+{% if columns %}
+    <h2 class="mt-5">Apply K-Means Clustering</h2>
+    <form id="kmeans-form" method="POST">
+        <div class="row">
+            <div class="col-md-6">
+                <label for="n_clusters" class="form-label">Number of Clusters</label>
+                <input type="number" class="form-control" name="n_clusters" id="n_clusters" min="2" required>
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">Apply K-Means</button>
+            </div>
+        </div>
+    </form>
+    <div id="kmeans-results-section" class="mt-5">
+        <!-- K-Means results will be dynamically inserted here -->
+    </div>
+{% endif %}
+{% if columns %}
+    <h2 class="mt-5">Apply AGNES Clustering</h2>
+    <form id="agnes-form" method="POST">
+        <div class="row">
+            <div class="col-md-4">
+                <label for="n_clusters" class="form-label">Number of Clusters</label>
+                <input type="number" class="form-control" name="n_clusters" id="n_clusters" min="2" required>
+            </div>
+            <div class="col-md-4">
+                <label for="method" class="form-label">Linkage Method</label>
+                <select class="form-select" name="method" id="method">
+                    <option value="ward" selected>Ward</option>
+                    <option value="single">Single</option>
+                    <option value="complete">Complete</option>
+                    <option value="average">Average</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">Apply AGNES</button>
+            </div>
+        </div>
+    </form>
+    <div id="agnes-results-section" class="mt-5">
+        <!-- AGNES results will be dynamically inserted here -->
+    </div>
+{% endif %}
+{% if columns %}
+    <h2 class="mt-5">Apply DIANA Clustering</h2>
+    <form id="diana-form" method="POST">
+        <div class="row">
+            <div class="col-md-6">
+                <label for="n_clusters" class="form-label">Number of Clusters</label>
+                <input type="number" class="form-control" name="n_clusters" id="n_clusters" min="2" required>
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">Apply DIANA</button>
+            </div>
+        </div>
+    </form>
+    <div id="diana-results-section" class="mt-5">
+        <!-- DIANA results will be dynamically inserted here -->
+    </div>
+{% endif %}
 <script>
-  function attachScatterFormListener() {
-      const scatterForm = document.getElementById('scatter-form');
-      if (scatterForm) {
-          scatterForm.addEventListener('submit', function(event) {
+  function attachFormListener(formId, sectionId, endpoint) {
+      const form = document.getElementById(formId);
+      if (form) {
+          form.addEventListener('submit', function(event) {
               event.preventDefault(); // Prevent the default form submission
 
               const formData = new FormData(this);
 
-              fetch('{{ url_for("generate_scatter") }}', {
+              fetch(endpoint, {
                   method: 'POST',
                   body: formData
               })
               .then(response => response.text())
               .then(html => {
-                  // Update only the scatter plot section with the new content
-                  document.getElementById('scatter-plot-section').innerHTML = html;
-
-                  // Re-attach the event listener to the new form
-                  attachScatterFormListener();
+                  // Update only the specified section with the new content
+                  document.getElementById(sectionId).innerHTML = html;
               })
               .catch(error => console.error('Error:', error));
           });
       }
   }
 
-  // Attach the event listener when the page loads
-  attachScatterFormListener();
+  // Attach listeners for forms
+  attachFormListener('scatter-form', 'scatter-plot-section', '{{ url_for("generate_scatter") }}');
+  attachFormListener('kmeans-form', 'kmeans-results-section', '{{ url_for("apply_kmeans") }}')
+  attachFormListener('agnes-form', 'agnes-results-section', '{{ url_for("apply_agnes") }}');
+  attachFormListener('diana-form', 'diana-results-section', '{{ url_for("apply_diana") }}');
 </script>
 </body>
 </html>
