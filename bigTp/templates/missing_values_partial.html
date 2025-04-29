@@ -1,0 +1,21 @@
+{% if dataset_summary %}
+    <h2 class="mt-5">Updated Dataset Summary</h2>
+
+    <h4 class="mt-4">Dimensions</h4>
+    <p>{{ dataset_summary.dimensions }}</p>
+
+    <h4 class="mt-4">Data Types</h4>
+    <div class="table-responsive overflow">
+        {{ dataset_summary.data_types|safe }}
+    </div>
+
+    <h4 class="mt-4">Missing Values</h4>
+    <div class="table-responsive overflow">
+        {{ dataset_summary.missing_values|safe }}
+    </div>
+
+    <h4 class="mt-4">Descriptive Statistics</h4>
+    <div class="table-responsive overflow">
+        {{ dataset_summary.descriptive_stats|safe }}
+    </div>
+{% endif %}

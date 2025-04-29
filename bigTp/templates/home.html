@@ -55,6 +55,26 @@
         {{ dataset_summary.descriptive_stats|safe }}
     </div>
 {% endif %}
+{% if dataset_summary and dataset_summary.missing_values|safe and dataset_summary.missing_values|safe != '<table class="dataframe table table-striped"><thead><tr><th>Column</th><th>Missing Values</th></tr></thead><tbody></tbody></table>' %}
+    <h2 class="mt-5">Handle Missing Values</h2>
+    <form id="missing-values-form" method="POST">
+        <div class="row">
+            <div class="col-md-6">
+                <label for="method" class="form-label">Choose a method to fill missing values</label>
+                <select class="form-select" name="method" id="method" required>
+                    <option value="mean">Fill with Mean</option>
+                    <option value="median">Fill with Median</option>
+                </select>
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">Apply</button>
+            </div>
+        </div>
+    </form>
+    <div id="missing-values-results-section" class="mt-5">
+        <!-- Updated dataset summary will be dynamically inserted here -->
+    </div>
+{% endif %}
 {% if boxplot_image %}
     <h2 class="mt-5">Boxplots of Variables</h2>
     <img src="{{ url_for('static', filename='boxplots.png') }}" alt="Boxplots" class="img-fluid">
@@ -241,7 +261,7 @@
   attachFormListener('k-distance-form', 'k-distance-results-section', '{{ url_for("generate_k_distance") }}');
   attachFormListener('dbscan-form', 'dbscan-results-section', '{{ url_for("apply_dbscan") }}')
   attachFormListener('kmedoids-form', 'kmedoids-results-section', '{{ url_for("apply_kmedoids") }}');
-
+  attachFormListener('missing-values-form', 'missing-values-results-section', '{{ url_for("handle_missing_values") }}');
 </script>
 </body>
 </html>

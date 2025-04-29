@@ -1080,6 +1080,52 @@ def plot_dbscan_clusters(data, labels, eps, min_pts, target_clusters=None):
         print(f"  Écart-type des tailles: {size_std:.2f}")
         print(f"  Coefficient de variation: {size_cv:.2f}")
 
+@app.route('/handle_missing_values', methods=['POST'])
+def handle_missing_values():
+    try:
+        # Get the user's choice (mean or median)
+        method = request.form['method']
+
+        # Reload the dataset from the session
+        filepath = session.get('uploaded_file')
+        if not filepath:
+            return "No dataset found. Please upload a dataset first.", 400
+
+        df, _ = load_dataset(filepath, normalize=False)
+
+        # Fill missing values based on the selected method
+        if method == 'mean':
+            df = df.fillna(df.mean(numeric_only=True))
+        elif method == 'median':
+            df = df.fillna(df.median(numeric_only=True))
+        else:
+            return "Invalid method selected.", 400
+
+        # Save the updated dataset back to the same file
+        df.to_csv(filepath, index=False)
+
+        # Reload the dataset summary
+        dimensions = f"Dimensions: {df.shape}"
+        data_types = df.dtypes.to_frame(name="Data Type").reset_index().rename(columns={"index": "Column"}).to_html(classes='table table-striped', index=False)
+        missing_values = df.isnull().sum().to_frame(name="Missing Values").reset_index().rename(columns={"index": "Column"}).to_html(classes='table table-striped', index=False)
+        descriptive_stats = df.describe().to_html(classes='table table-striped')
+
+        dataset_summary = {
+            "dimensions": dimensions,
+            "data_types": data_types,
+            "missing_values": missing_values,
+            "descriptive_stats": descriptive_stats,
+        }
+
+        # Return the updated dataset summary
+        return render_template(
+            'missing_values_partial.html',
+            dataset_summary=dataset_summary,
+            time=time.time()
+        )
+    except Exception as e:
+        return str(e), 500
+    
 @app.route('/generate_k_distance', methods=['POST'])
 def generate_k_distance():
     try:
