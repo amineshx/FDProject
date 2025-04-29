@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Upload Dataset</title>
+    <title>TP FD</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="container mt-5">
@@ -28,15 +28,11 @@
 
     {% if preview %}
         <h2 class="mt-5">Preview of the dataset</h2>
-        <div class="table-responsive">
+        <div class="table-responsive overflow">
             {{ preview|safe }}
         </div>
     {% endif %}
     
-    {% if elbow_image %}
-    <h2 class="mt-5">Elbow Method Curve</h2>
-    <img src="{{ url_for('static', filename='elbow.png') }}" alt="Elbow Curve" class="img-fluid">
-    {% endif %}
 
     {% if dataset_summary %}
     <h2 class="mt-5">Dataset Summary</h2>
@@ -45,17 +41,17 @@
     <p>{{ dataset_summary.dimensions }}</p>
 
     <h4 class="mt-4">Data Types</h4>
-    <div class="table-responsive">
+    <div class="table-responsive overflow">
         {{ dataset_summary.data_types|safe }}
     </div>
 
     <h4 class="mt-4">Missing Values</h4>
-    <div class="table-responsive">
+    <div class="table-responsive overflow">
         {{ dataset_summary.missing_values|safe }}
     </div>
 
     <h4 class="mt-4">Descriptive Statistics</h4>
-    <div class="table-responsive">
+    <div class="table-responsive overflow">
         {{ dataset_summary.descriptive_stats|safe }}
     </div>
 {% endif %}
@@ -95,7 +91,10 @@
         {% endif %}
     </div>
 {% endif %}
-
+{% if elbow_image %}
+    <h2 class="mt-5">Elbow Method Curve</h2>
+    <img src="{{ url_for('static', filename='elbow.png') }}" alt="Elbow Curve" class="img-fluid">
+    {% endif %}
 {% if columns %}
     <h2 class="mt-5">Apply K-Means Clustering</h2>
     <form id="kmeans-form" method="POST">
@@ -111,6 +110,23 @@
     </form>
     <div id="kmeans-results-section" class="mt-5">
         <!-- K-Means results will be dynamically inserted here -->
+    </div>
+{% endif %}
+{% if columns %}
+    <h2 class="mt-5">Apply K-Medoids Clustering</h2>
+    <form id="kmedoids-form" method="POST">
+        <div class="row">
+            <div class="col-md-6">
+                <label for="n_clusters" class="form-label">Number of Clusters</label>
+                <input type="number" class="form-control" name="n_clusters" id="n_clusters" min="2" required>
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">Apply K-Medoids</button>
+            </div>
+        </div>
+    </form>
+    <div id="kmedoids-results-section" class="mt-5">
+        <!-- K-Medoids results will be dynamically inserted here -->
     </div>
 {% endif %}
 {% if columns %}
@@ -156,6 +172,44 @@
         <!-- DIANA results will be dynamically inserted here -->
     </div>
 {% endif %}
+{% if columns %}
+    <h2 class="mt-5">Generate K-Distance Graph</h2>
+    <form id="k-distance-form" method="POST">
+        <div class="row">
+            <div class="col-md-6">
+                <label for="k" class="form-label">Number of Neighbors (k)</label>
+                <input type="number" class="form-control" name="k" id="k" min="1" value="4" required>
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">Generate K-Distance Graph</button>
+            </div>
+        </div>
+    </form>
+    <div id="k-distance-results-section" class="mt-5">
+        <!-- K-Distance graph results will be dynamically inserted here -->
+    </div>
+{% endif %}
+{% if columns %}
+    <h2 class="mt-5">Apply DBSCAN Clustering</h2>
+    <form id="dbscan-form" method="POST">
+        <div class="row">
+            <div class="col-md-4">
+                <label for="eps" class="form-label">Epsilon (eps)</label>
+                <input type="number" class="form-control" name="eps" id="eps" step="0.01" required>
+            </div>
+            <div class="col-md-4">
+                <label for="min_samples" class="form-label">Min Samples</label>
+                <input type="number" class="form-control" name="min_samples" id="min_samples" min="1" required>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">Apply DBSCAN</button>
+            </div>
+        </div>
+    </form>
+    <div id="dbscan-results-section" class="mt-5">
+        <!-- DBSCAN results will be dynamically inserted here -->
+    </div>
+{% endif %}
 <script>
   function attachFormListener(formId, sectionId, endpoint) {
       const form = document.getElementById(formId);
@@ -180,10 +234,14 @@
   }
 
   // Attach listeners for forms
-  attachFormListener('scatter-form', 'scatter-plot-section', '{{ url_for("generate_scatter") }}');
+  attachFormListener('scatter-form', 'scatter-plot-section', '{{ url_for("generate_scatter") }}')
   attachFormListener('kmeans-form', 'kmeans-results-section', '{{ url_for("apply_kmeans") }}')
-  attachFormListener('agnes-form', 'agnes-results-section', '{{ url_for("apply_agnes") }}');
-  attachFormListener('diana-form', 'diana-results-section', '{{ url_for("apply_diana") }}');
+  attachFormListener('agnes-form', 'agnes-results-section', '{{ url_for("apply_agnes") }}')
+  attachFormListener('diana-form', 'diana-results-section', '{{ url_for("apply_diana") }}')
+  attachFormListener('k-distance-form', 'k-distance-results-section', '{{ url_for("generate_k_distance") }}');
+  attachFormListener('dbscan-form', 'dbscan-results-section', '{{ url_for("apply_dbscan") }}')
+  attachFormListener('kmedoids-form', 'kmedoids-results-section', '{{ url_for("apply_kmedoids") }}');
+
 </script>
 </body>
 </html>

@@ -1,0 +1,18 @@
+{% if dbscan_image %}
+    <h2>DBSCAN Clustering Visualization</h2>
+    <img src="{{ url_for('static', filename=dbscan_image) }}?v={{ time }}" alt="DBSCAN Clustering" class="img-fluid">
+{% endif %}
+
+{% if metrics %}
+    <h2 class="mt-5">Clustering Metrics</h2>
+    <ul>
+        <li><strong>Number of Clusters:</strong> {{ metrics.n_clusters }}</li>
+        <li><strong>Noise Ratio:</strong> {{ metrics.noise_ratio|round(3) }}</li>
+        {% if metrics.silhouette %}
+            <li><strong>Silhouette Score:</strong> {{ metrics.silhouette|round(3) }}</li>
+        {% endif %}
+        {% if metrics.calinski %}
+            <li><strong>Calinski-Harabasz Index:</strong> {{ metrics.calinski|round(3) }}</li>
+        {% endif %}
+    </ul>
+{% endif %}

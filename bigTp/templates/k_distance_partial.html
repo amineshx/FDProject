@@ -1,0 +1,10 @@
+{% if k_distance_image %}
+    <h2>K-Distance Graph</h2>
+    <img src="{{ url_for('static', filename=k_distance_image) }}?v={{ time }}" alt="K-Distance Graph" class="img-fluid">
+    <h3>Suggested Epsilon Values</h3>
+    <ul>
+        {% for eps in eps_suggestions %}
+            <li>{{ eps|round(4) }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}

@@ -1,0 +1,14 @@
+<div class="mt-5">
+    <h3>K-Medoids Clustering Results</h3>
+    <img src="{{ url_for('static', filename=kmedoids_image) }}" alt="K-Medoids Clustering" class="img-fluid">
+    <h4 class="mt-4">Clustered Data</h4>
+    <div class="table-responsive">
+        {{ clustered_data|safe }}
+    </div>
+    <h4 class="mt-4">Clustering Metrics</h4>
+    <ul>
+        {% for metric, value in metrics.items() %}
+            <li><strong>{{ metric }}:</strong> {{ value }}</li>
+        {% endfor %}
+    </ul>
+</div>

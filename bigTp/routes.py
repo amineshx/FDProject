@@ -9,12 +9,16 @@ from sklearn.decomposition import PCA
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans, DBSCAN
+from sklearn.neighbors import NearestNeighbors
+from kneed import KneeLocator
 from scipy.cluster.hierarchy import linkage, dendrogram
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
+from sklearn_extra.cluster import KMedoids  # Import K-Medoids
 import matplotlib.pyplot as plt
+from collections import Counter
 import matplotlib
-matplotlib.use('Agg')  # Use a non-interactive backend
+matplotlib.use('Agg') 
 from matplotlib import rcParams
 rcParams['font.family'] = 'DejaVu Sans'
 
@@ -30,10 +34,18 @@ def load_dataset(file_path, normalize=True):
     elif file_path.endswith('.trff'):
         df = pd.read_csv(file_path, delimiter='\t')
     else:
-        raise ValueError("Format de fichier non supporté. Utilisez .csv ou .trff")
-    
-    df_numeric = df.select_dtypes(include=['float64', 'int64'])
+        raise ValueError("Unsupported file format. Please use .csv or .trff")
 
+    # Handle missing values
+    if df.isnull().values.any():
+        print("Dataset contains missing values. Handling them...")
+        df = df.fillna(df.mean(numeric_only=True))  # Fill numeric columns with their mean
+
+    # Drop non-numeric columns
+    df_numeric = df.select_dtypes(include=['float64', 'int64'])
+    print(f"Selected numeric columns: {df_numeric.columns.tolist()}")
+
+    # Normalize the data if required
     if normalize:
         scaler = StandardScaler()
         data = scaler.fit_transform(df_numeric.values)
@@ -42,7 +54,7 @@ def load_dataset(file_path, normalize=True):
 
     return df, data
 
-def plot_elbow_curve(data, max_k=10):
+def plot_elbow_curve(data, max_k=15):
     """
     Trace la courbe d'Elbow pour déterminer le nombre optimal de clusters.
     """
@@ -243,6 +255,52 @@ def apply_kmeans_show_classes(df, data, n_clusters, class_col_candidates=['Class
     print(f"Saving kmeans.png to: {kmeans_path}")
 
     return df_clustered, metrics_dict, 'kmeans.png'
+
+def apply_kmedoids(df, data, n_clusters):
+    """
+    Applies K-Medoids clustering and visualizes the results.
+
+    Parameters:
+    - df: Original DataFrame (non-normalized).
+    - data: Normalized data (numpy array).
+    - n_clusters: Number of clusters.
+
+    Returns:
+    - df_clustered: DataFrame with cluster labels.
+    - metrics_dict: Dictionary with clustering metrics.
+    - kmedoids_image: Path to the saved K-Medoids visualization.
+    """
+    # Apply K-Medoids
+    kmedoids = KMedoids(n_clusters=n_clusters, random_state=42)
+    labels = kmedoids.fit_predict(data)
+
+    # Create a DataFrame with cluster labels
+    df_clustered = df.copy()
+    df_clustered['Cluster'] = labels
+
+    # Compute clustering metrics
+    metrics_dict = compute_clustering_metrics(data, labels, display=True)
+
+    # Visualize the clusters
+    plt.figure(figsize=(8, 6))
+    scatter = plt.scatter(data[:, 0], data[:, 1], c=labels, cmap='viridis', edgecolor='k', label='Clusters')
+    plt.scatter(kmedoids.cluster_centers_[:, 0], kmedoids.cluster_centers_[:, 1],
+                c='red', s=200, marker='X', label='Medoids')
+    plt.xlabel("Dimension 1")
+    plt.ylabel("Dimension 2")
+    plt.title(f"K-Medoids Clustering (k={n_clusters})")
+    plt.legend()
+    plt.grid(True)
+
+    # Save the figure to the static directory
+    static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static')
+    os.makedirs(static_dir, exist_ok=True)
+    kmedoids_path = os.path.join(static_dir, 'kmedoids.png')
+    plt.savefig(kmedoids_path)
+    plt.close()
+    print(f"Saving kmedoids.png to: {kmedoids_path}")
+
+    return df_clustered, metrics_dict, 'kmedoids.png'
 
 def apply_agnes_and_plot_dendrogram(data, n_clusters=3, method='ward'):
     """
@@ -453,6 +511,624 @@ def plot_clusters_2d(data, labels, title="Visualisation des clusters"):
     plt.tight_layout()
     plt.show()
 
+def plot_k_distance_graph(data, k=4, n_points=None):
+    """
+    Trace le graphique de la k-distance avec suggestions d'epsilon multiples.
+    """
+    try:
+        # Calculate distances to the k nearest neighbors
+        neighbors = NearestNeighbors(n_neighbors=k+1).fit(data)
+        distances, _ = neighbors.kneighbors(data)
+        k_distances = np.sort(distances[:, k])
+        print(f"Calculated k-distances: {k_distances[:10]}")  # Debug: Check first 10 distances
+
+        # Limit the number of points if specified
+        if n_points and n_points < len(k_distances):
+            indices = np.linspace(0, len(k_distances)-1, n_points, dtype=int)
+            k_distances_display = k_distances[indices]
+        else:
+            k_distances_display = k_distances
+
+        # Plot the k-distance graph
+        plt.figure(figsize=(12, 7))
+        plt.plot(range(len(k_distances_display)), k_distances_display, 'b-')
+        plt.xlabel('Points triés par distance')
+        plt.ylabel(f'Distance au {k}ème voisin le plus proche')
+        plt.title(f'Graphique de la {k}-distance pour déterminer epsilon')
+        plt.grid(True)
+
+        # Detect the elbow point
+        eps_suggestions = []
+        try:
+            kneedle = KneeLocator(range(len(k_distances)), k_distances, curve='convex', direction='increasing')
+            knee_index = kneedle.knee
+            if knee_index:
+                eps_knee = k_distances[knee_index]
+                eps_suggestions.append(eps_knee)
+                plt.axvline(x=knee_index, color='r', linestyle='--', label=f'Coude principal à eps ≈ {eps_knee:.4f}')
+                plt.axhline(y=eps_knee, color='r', linestyle='--')
+        except Exception as e:
+            print(f"Error detecting elbow point: {e}")  # Debug: Print elbow detection error
+
+        # Add percentile-based suggestions
+        for percentile, color, style in [(10, 'g', '-.'), (25, 'm', ':'), (50, 'c', '--')]:
+            eps_perc = np.percentile(k_distances, percentile)
+            eps_suggestions.append(eps_perc)
+            plt.axhline(y=eps_perc, color=color, linestyle=style, label=f'Percentile {percentile}% à eps ≈ {eps_perc:.4f}')
+
+        plt.legend()
+        plt.tight_layout()
+
+        return sorted(eps_suggestions)
+    except Exception as e:
+        print(f"Error in plot_k_distance_graph: {e}")  # Debug: Print the error
+        raise
+
+def adaptive_dbscan_clustering(data, target_clusters=3, min_pts_range=range(2, 11), max_noise_ratio=0.2):
+    """
+    Version améliorée de DBSCAN qui adapte les paramètres pour équilibrer les clusters.
+    
+    Paramètres :
+    - data : numpy array normalisé
+    - target_clusters : nombre cible de clusters
+    - min_pts_range : plage de valeurs à tester pour MinPts
+    - max_noise_ratio : ratio maximum de points de bruit acceptables
+    
+    Retourne :
+    - best_labels : meilleures étiquettes de clusters trouvées
+    - best_eps : meilleure valeur epsilon
+    - best_min_pts : meilleure valeur MinPts
+    - best_metrics : dict avec métriques sur la meilleure solution
+    """
+    best_labels = None
+    best_eps = None
+    best_min_pts = None
+    best_metrics = {
+        'n_clusters': 0,
+        'silhouette': -1,
+        'calinski': -1,
+        'noise_ratio': 1.0,
+        'cluster_sizes': [],
+        'size_std': float('inf')  # Écart-type de la taille des clusters
+    }
+    
+    print("Recherche des paramètres optimaux pour DBSCAN...")
+    
+    # Essai de plusieurs valeurs de MinPts
+    for min_pts in min_pts_range:
+        # Obtenir plusieurs suggestions d'epsilon
+        eps_suggestions = plot_k_distance_graph(data, k=min_pts-1)
+        print(f"\nTest avec MinPts = {min_pts}")
+        
+        # Ajouter des valeurs intermédiaires entre les suggestions
+        additional_eps = []
+        for i in range(len(eps_suggestions)-1):
+            mid = (eps_suggestions[i] + eps_suggestions[i+1]) / 2
+            additional_eps.extend([eps_suggestions[i] * 0.75, mid, eps_suggestions[i+1] * 0.9])
+        
+        # Combiner toutes les suggestions d'epsilon
+        all_eps = sorted(set(eps_suggestions + additional_eps))
+        
+        # Essayer chaque valeur d'epsilon
+        for eps in all_eps:
+            # Appliquer DBSCAN
+            dbscan = DBSCAN(eps=eps, min_samples=min_pts)
+            labels = dbscan.fit_predict(data)
+            
+            # Compter les clusters (hors bruit)
+            unique_labels = set(labels)
+            n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)
+            
+            # Calculer le ratio de points de bruit
+            noise_count = list(labels).count(-1)
+            noise_ratio = noise_count / len(labels)
+            
+            # Si trop de bruit, ignorer cette configuration
+            if noise_ratio > max_noise_ratio:
+                continue
+                
+            # Calculer la distribution des tailles de clusters
+            cluster_sizes = []
+            for label in unique_labels:
+                if label != -1:  # Ignorer les points de bruit
+                    cluster_sizes.append(list(labels).count(label))
+                    
+            # Écart-type de la taille des clusters
+            size_std = np.std(cluster_sizes) if cluster_sizes else float('inf')
+            
+            # Si on a un nombre de clusters proche de la cible (±1)
+            if abs(n_clusters - target_clusters) <= 1:
+                # Calculer les métriques de qualité
+                metrics = {
+                    'n_clusters': n_clusters,
+                    'noise_ratio': noise_ratio,
+                    'cluster_sizes': cluster_sizes,
+                    'size_std': size_std
+                }
+                
+                # Calculer le score silhouette (si possible)
+                if n_clusters > 1:
+                    non_noise_indices = labels != -1
+                    if sum(non_noise_indices) > n_clusters:
+                        try:
+                            metrics['silhouette'] = silhouette_score(
+                                data[non_noise_indices], labels[non_noise_indices]
+                            )
+                            metrics['calinski'] = calinski_harabasz_score(
+                                data[non_noise_indices], labels[non_noise_indices]
+                            )
+                        except:
+                            metrics['silhouette'] = -1
+                            metrics['calinski'] = -1
+                
+                # Système de score pour sélectionner la meilleure solution
+                is_better = False
+                
+                # Si le nombre exact de clusters est atteint
+                if n_clusters == target_clusters and best_metrics['n_clusters'] != target_clusters:
+                    is_better = True
+                # Si on a le même nombre de clusters que la meilleure solution actuelle
+                elif n_clusters == best_metrics['n_clusters']:
+                    # Préférer les clusters plus équilibrés (écart-type plus petit)
+                    if size_std < best_metrics['size_std'] * 0.8:
+                        is_better = True
+                    # À équilibre similaire, préférer moins de bruit
+                    elif abs(size_std - best_metrics['size_std']) < best_metrics['size_std'] * 0.2:
+                        if noise_ratio < best_metrics['noise_ratio'] * 0.8:
+                            is_better = True
+                        # À bruit similaire, préférer une meilleure séparation des clusters
+                        elif abs(noise_ratio - best_metrics['noise_ratio']) < best_metrics['noise_ratio'] * 0.2:
+                            if metrics.get('silhouette', -1) > best_metrics.get('silhouette', -1):
+                                is_better = True
+                
+                # Mettre à jour la meilleure solution si nécessaire
+                if is_better:
+                    best_labels = labels.copy()
+                    best_eps = eps
+                    best_min_pts = min_pts
+                    best_metrics = metrics
+                    
+                    print(f"Meilleure solution mise à jour: eps={eps:.4f}, MinPts={min_pts}")
+                    print(f"  {n_clusters} clusters, {noise_ratio:.1%} de bruit")
+                    print(f"  Tailles des clusters: {cluster_sizes}")
+                    if 'silhouette' in metrics:
+                        print(f"  Score silhouette: {metrics['silhouette']:.4f}")
+    
+    # Si aucune bonne solution n'a été trouvée
+    if best_labels is None:
+        print("Aucune solution satisfaisante trouvée avec les critères actuels.")
+        print("Essai avec des paramètres moins restrictifs...")
+        
+        # Essayer une dernière tentative avec moins de restrictions
+        for min_pts in [2, 3]:
+            for eps_factor in [0.8, 1.0, 1.2]:
+                eps = eps_suggestions[0] * eps_factor
+                dbscan = DBSCAN(eps=eps, min_samples=min_pts)
+                labels = dbscan.fit_predict(data)
+                
+                # Compter les clusters (hors bruit)
+                unique_labels = set(labels)
+                n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)
+                
+                # Si on a au moins 2 clusters, c'est déjà un bon début
+                if n_clusters >= 2:
+                    best_labels = labels
+                    best_eps = eps
+                    best_min_pts = min_pts
+                    noise_count = list(labels).count(-1)
+                    noise_ratio = noise_count / len(labels)
+                    
+                    cluster_sizes = []
+                    for label in unique_labels:
+                        if label != -1:
+                            cluster_sizes.append(list(labels).count(label))
+                    
+                    best_metrics = {
+                        'n_clusters': n_clusters,
+                        'noise_ratio': noise_ratio,
+                        'cluster_sizes': cluster_sizes,
+                        'size_std': np.std(cluster_sizes) if cluster_sizes else 0
+                    }
+                    
+                    print(f"Solution de repli trouvée: eps={eps:.4f}, MinPts={min_pts}")
+                    print(f"  {n_clusters} clusters, {noise_ratio:.1%} de bruit")
+                    break
+            if best_labels is not None:
+                break
+    
+    if best_labels is None:
+        # Dernier recours: K-means adaptatif avec des points de "bruit"
+        print("Tentative avec une approche hybride K-means + points isolés...")
+        from sklearn.cluster import KMeans
+        
+        # Détecter les outliers avec la distance moyenne aux K voisins les plus proches
+        k = 10  # Nombre de voisins pour détecter les outliers
+        neighbors = NearestNeighbors(n_neighbors=k+1).fit(data)
+        distances, _ = neighbors.kneighbors(data)
+        avg_distances = np.mean(distances[:, 1:], axis=1)  # Distance moyenne aux k voisins
+        
+        # Identifier les outliers (points dont la distance moyenne est > 2 écarts-types)
+        threshold = np.mean(avg_distances) + 2 * np.std(avg_distances)
+        outlier_mask = avg_distances > threshold
+        
+        # Appliquer K-means sur les points non-outliers
+        non_outliers = data[~outlier_mask]
+        kmeans = KMeans(n_clusters=target_clusters, random_state=42, n_init=10)
+        cluster_labels = kmeans.fit_predict(non_outliers)
+        
+        # Créer les étiquettes finales
+        labels = np.zeros(len(data), dtype=int) - 1  # Initialiser tout à -1 (bruit)
+        labels[~outlier_mask] = cluster_labels  # Assigner les clusters
+        
+        best_labels = labels
+        best_eps = None
+        best_min_pts = None
+        
+        # Calculer les métriques
+        noise_ratio = np.sum(outlier_mask) / len(data)
+        cluster_sizes = [np.sum(labels == i) for i in range(target_clusters)]
+        
+        best_metrics = {
+            'n_clusters': target_clusters,
+            'noise_ratio': noise_ratio,
+            'cluster_sizes': cluster_sizes,
+            'size_std': np.std(cluster_sizes)
+        }
+        
+        print(f"Solution hybride K-means + détection d'outliers:")
+        print(f"  {target_clusters} clusters, {noise_ratio:.1%} de bruit")
+        print(f"  Tailles des clusters: {cluster_sizes}")
+    
+    return best_labels, best_eps, best_min_pts, best_metrics
+
+def balance_clusters(labels, data, target_clusters=3):
+    """
+    Tente d'équilibrer les clusters en les divisant ou fusionnant.
+    
+    Paramètres :
+    - labels : étiquettes DBSCAN actuelles
+    - data : données originales
+    - target_clusters : nombre cible de clusters
+    
+    Retourne :
+    - new_labels : étiquettes après équilibrage
+    """
+    from sklearn.cluster import KMeans
+    
+    # Compter les clusters actuels (hors bruit)
+    unique_labels = sorted(list(set(labels)))
+    n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)
+    
+    # Si déjà au nombre cible, vérifier l'équilibre
+    if n_clusters == target_clusters:
+        counts = Counter(labels)
+        cluster_sizes = [counts[label] for label in unique_labels if label != -1]
+        size_ratio = max(cluster_sizes) / min(cluster_sizes)
+        
+        # Si suffisamment équilibré, retourner tel quel
+        if size_ratio < 3:
+            return labels
+    
+    # Copier les étiquettes
+    new_labels = labels.copy()
+    
+    # Si trop peu de clusters, diviser le plus grand
+    if n_clusters < target_clusters:
+        # Trouver le plus grand cluster
+        counts = Counter(labels)
+        largest_label = max((label for label in unique_labels if label != -1), 
+                          key=lambda l: counts[l])
+        
+        # Indices des points dans ce cluster
+        cluster_indices = np.where(labels == largest_label)[0]
+        cluster_data = data[cluster_indices]
+        
+        # Diviser ce cluster en (target - n_clusters + 1) sous-clusters
+        n_subclusters = target_clusters - n_clusters + 1
+        kmeans = KMeans(n_clusters=n_subclusters, random_state=42, n_init=10)
+        sub_labels = kmeans.fit_predict(cluster_data)
+        
+        # Réattribuer les étiquettes
+        for i, idx in enumerate(cluster_indices):
+            new_labels[idx] = largest_label + sub_labels[i] * 10  # *10 pour éviter les conflits
+        
+        print(f"Divisé le cluster {largest_label} en {n_subclusters} sous-clusters")
+        
+    # Si trop de clusters, fusionner les plus proches
+    elif n_clusters > target_clusters:
+        # Calculer les centres des clusters
+        centers = {}
+        for label in unique_labels:
+            if label != -1:
+                centers[label] = np.mean(data[labels == label], axis=0)
+        
+        # Calculer les distances entre clusters
+        cluster_distances = {}
+        for label1 in centers:
+            for label2 in centers:
+                if label1 < label2:
+                    dist = np.linalg.norm(centers[label1] - centers[label2])
+                    cluster_distances[(label1, label2)] = dist
+        
+        # Fusionner des clusters jusqu'à atteindre le nombre cible
+        to_merge = n_clusters - target_clusters
+        for _ in range(to_merge):
+            if not cluster_distances:
+                break
+                
+            # Trouver les clusters les plus proches
+            closest_pair = min(cluster_distances.keys(), key=lambda k: cluster_distances[k])
+            label1, label2 = closest_pair
+            
+            # Fusionner label2 dans label1
+            new_labels[new_labels == label2] = label1
+            
+            # Mettre à jour les distances
+            del cluster_distances[closest_pair]
+            cluster_distances = {k: v for k, v in cluster_distances.items() 
+                               if label2 not in k}
+            
+            print(f"Fusionné les clusters {label1} et {label2}")
+    
+    # Réétiqueter séquentiellement
+    unique_new_labels = sorted(list(set(new_labels)))
+    label_map = {old_label: i-1 if old_label != -1 else -1 
+               for i, old_label in enumerate(unique_new_labels)}
+    
+    final_labels = np.array([label_map[l] for l in new_labels])
+    
+    return final_labels
+
+def apply_dbscan_clustering(data, target_clusters=3, balance=True, max_noise_ratio=0.2):
+    """
+    Version améliorée qui applique DBSCAN avec équilibrage des clusters.
+    
+    Paramètres :
+    - data : numpy array normalisé
+    - target_clusters : nombre cible de clusters
+    - balance : si True, tente d'équilibrer les clusters
+    - max_noise_ratio : ratio maximum de points de bruit accepté
+    
+    Retourne :
+    - labels : résultat du clustering
+    """
+    # Appliquer DBSCAN adaptatif
+    labels, eps, min_pts, metrics = adaptive_dbscan_clustering(
+        data, target_clusters, max_noise_ratio=max_noise_ratio
+    )
+    
+    # Équilibrer les clusters si demandé
+    if balance and abs(metrics['n_clusters'] - target_clusters) > 0:
+        print("\nÉquilibrage des clusters pour atteindre la cible...")
+        labels = balance_clusters(labels, data, target_clusters)
+        
+        # Recalculer les métriques
+        unique_labels = set(labels)
+        n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)
+        noise_ratio = list(labels).count(-1) / len(labels)
+        
+        cluster_sizes = []
+        for label in unique_labels:
+            if label != -1:
+                cluster_sizes.append(list(labels).count(label))
+        
+        print(f"Après équilibrage: {n_clusters} clusters, {noise_ratio:.1%} de bruit")
+        print(f"Tailles des clusters: {cluster_sizes}")
+    
+    # Visualiser les clusters finaux
+    plot_dbscan_clusters(data, labels, eps, min_pts, target_clusters)
+    
+    return labels
+
+def plot_dbscan_clusters(data, labels, eps, min_pts, target_clusters=None):
+    """
+    Visualise les clusters DBSCAN en 2D avec plus d'informations.
+    
+    Paramètres :
+    - data : numpy array normalisé
+    - labels : étiquettes des clusters
+    - eps : valeur epsilon utilisée (peut être None)
+    - min_pts : valeur MinPts utilisée (peut être None)
+    - target_clusters : nombre cible de clusters (pour affichage)
+    """
+    # Réduction dimensionnelle avec PCA si nécessaire
+    if data.shape[1] > 2:
+        pca = PCA(n_components=2)
+        data_2d = pca.fit_transform(data)
+        explained_var = pca.explained_variance_ratio_
+        print(f"Variance expliquée par les 2 premières composantes : {sum(explained_var)*100:.2f}%")
+    else:
+        data_2d = data
+    
+    # Obtenir le nombre de clusters uniques (hors bruit)
+    unique_labels = set(labels)
+    n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)
+    
+    # Tracer les points
+    plt.figure(figsize=(12, 9))
+    
+    # Palette de couleurs
+    colors = plt.cm.tab10(np.linspace(0, 1, max(10, n_clusters+1)))
+    
+    # Statistiques sur les clusters
+    cluster_stats = {}
+    
+    # Tracer chaque cluster
+    for k, col in zip(sorted(unique_labels), colors):
+        cluster_points = data_2d[labels == k]
+        cluster_size = len(cluster_points)
+        
+        if k == -1:
+            # Tracer les points de bruit en noir
+            plt.scatter(cluster_points[:, 0], cluster_points[:, 1], s=20, 
+                       c='black', marker='x', label=f'Points de bruit ({cluster_size})')
+        else:
+            # Tracer les points du cluster
+            plt.scatter(cluster_points[:, 0], cluster_points[:, 1], s=60, 
+                       c=[col], label=f'Cluster {k} ({cluster_size})')
+            
+            # Calculer le centre du cluster
+            center = np.mean(cluster_points, axis=0)
+            plt.scatter(center[0], center[1], s=200, c=[col], edgecolor='black', 
+                      marker='*', alpha=0.7)
+            
+            # Annoter le centre avec le numéro du cluster
+            plt.annotate(f"{k}", xy=(center[0], center[1]), xytext=(center[0]+0.1, center[1]+0.1),
+                        fontsize=15, fontweight='bold')
+            
+            # Stocker les statistiques du cluster
+            original_points = data[labels == k]
+            cluster_stats[k] = {
+                'size': cluster_size,
+                'center': np.mean(original_points, axis=0),
+                'std': np.std(original_points, axis=0),
+                'min': np.min(original_points, axis=0),
+                'max': np.max(original_points, axis=0)
+            }
+    
+    # Calculer les pourcentages de chaque cluster
+    total_points = len(labels)
+    noise_points = list(labels).count(-1)
+    noise_percent = noise_points / total_points * 100
+    
+    # Adapter le titre en fonction des informations disponibles
+    if eps is not None and min_pts is not None:
+        title = f'DBSCAN Clustering (eps={eps:.4f}, MinPts={min_pts}, {n_clusters}/{target_clusters} clusters)'
+    else:
+        title = f'Clustering avec {n_clusters} clusters'
+        if target_clusters:
+            title += f' (cible: {target_clusters})'
+    
+    # Ajouter le pourcentage de bruit au titre
+    title += f', {noise_percent:.1f}% de bruit'
+    
+    plt.title(title, fontsize=15)
+    plt.xlabel("Composante 1" if data.shape[1] > 2 else "Dimension 1")
+    plt.ylabel("Composante 2" if data.shape[1] > 2 else "Dimension 2")
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    plt.show()
+    
+    # Afficher des statistiques sur les clusters
+    print(f"\nStatistiques des clusters ({n_clusters} clusters, {noise_percent:.1f}% bruit):")
+    cluster_sizes = [list(labels).count(i) for i in sorted(unique_labels) if i != -1]
+    
+    for k in sorted(cluster_stats.keys()):
+        stats = cluster_stats[k]
+        size_percent = stats['size'] / total_points * 100
+        print(f"\nCluster {k}: {stats['size']} points ({size_percent:.1f}%)")
+        print(f"  Centre: {stats['center']}")
+        print(f"  Écart-type: {stats['std']}")
+        print(f"  Min: {stats['min']}")
+        print(f"  Max: {stats['max']}")
+    
+    # Afficher des métriques sur l'équilibre des clusters
+    if len(cluster_sizes) > 1:
+        size_ratio = max(cluster_sizes) / min(cluster_sizes)
+        size_std = np.std(cluster_sizes)
+        size_cv = size_std / np.mean(cluster_sizes)  # Coefficient de variation
+        
+        print(f"\nÉquilibre des clusters:")
+        print(f"  Ratio max/min: {size_ratio:.2f}")
+        print(f"  Écart-type des tailles: {size_std:.2f}")
+        print(f"  Coefficient de variation: {size_cv:.2f}")
+
+@app.route('/generate_k_distance', methods=['POST'])
+def generate_k_distance():
+    try:
+        k = int(request.form.get('k', 4))  # Default k = 4 (MinPts - 1)
+        print(f"Received k: {k}")  # Debug: Check the value of k
+
+        # Reload the dataset from the session
+        filepath = session.get('uploaded_file')
+        if not filepath:
+            return "No dataset found. Please upload a dataset first.", 400
+
+        _, data = load_dataset(filepath, normalize=True)
+        print(f"Dataset shape: {data.shape}")  # Debug: Check dataset shape
+
+        # Generate the k-distance graph
+        eps_suggestions = plot_k_distance_graph(data, k=k)
+        print(f"Suggested eps values: {eps_suggestions}")  # Debug: Check suggested eps values
+
+        # Save the k-distance graph to the static directory
+        static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static')
+        os.makedirs(static_dir, exist_ok=True)
+        k_distance_path = os.path.join(static_dir, 'k_distance.png')
+        plt.savefig(k_distance_path)
+        plt.close()
+        print(f"Saved k-distance graph to: {k_distance_path}")  # Debug: Check saved path
+
+        return render_template(
+            'k_distance_partial.html',
+            k_distance_image='k_distance.png',
+            eps_suggestions=eps_suggestions,
+            time=time.time()
+        )
+    except Exception as e:
+        print(f"Error in generate_k_distance: {e}")  # Debug: Print the error
+        return str(e), 500
+    
+@app.route('/apply_dbscan', methods=['POST'])
+def apply_dbscan():
+    try:
+        # Get the user-provided parameters
+        eps = float(request.form['eps'])
+        min_samples = int(request.form['min_samples'])
+
+        # Reload the dataset from the session
+        filepath = session.get('uploaded_file')
+        if not filepath:
+            return "No dataset found. Please upload a dataset first.", 400
+
+        df, data = load_dataset(filepath, normalize=True)
+        print(f"Dataset shape: {data.shape}")  # Debug: Check dataset shape
+
+        # Apply DBSCAN clustering
+        dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+        labels = dbscan.fit_predict(data)
+        print(f"DBSCAN Labels: {np.unique(labels)}")  # Debug: Check unique labels
+
+        # Calculate clustering metrics
+        unique_labels = set(labels)
+        n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)
+        noise_ratio = list(labels).count(-1) / len(labels)
+
+        metrics = {
+            'n_clusters': n_clusters,
+            'noise_ratio': noise_ratio
+        }
+
+        if n_clusters > 1:
+            non_noise_indices = labels != -1
+            if sum(non_noise_indices) > n_clusters:
+                try:
+                    metrics['silhouette'] = silhouette_score(data[non_noise_indices], labels[non_noise_indices])
+                    metrics['calinski'] = calinski_harabasz_score(data[non_noise_indices], labels[non_noise_indices])
+                except Exception as e:
+                    metrics['silhouette'] = None
+                    metrics['calinski'] = None
+
+        # Visualize the DBSCAN clustering
+        static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static')
+        os.makedirs(static_dir, exist_ok=True)
+        dbscan_image_path = os.path.join(static_dir, 'dbscan.png')
+        plot_dbscan_clusters(data, labels, eps, min_samples)
+        plt.savefig(dbscan_image_path)
+        plt.close()
+
+        # Return the partial template for DBSCAN results
+        return render_template(
+            'dbscan_partial.html',
+            dbscan_image='dbscan.png',
+            metrics=metrics,
+            labels=dict(zip(*np.unique(labels, return_counts=True))),
+            time=time.time()
+        )
+    except Exception as e:
+        return str(e), 500
+    
 @app.route('/apply_diana', methods=['POST'])
 def apply_diana():
     try:
@@ -544,7 +1220,35 @@ def download_clustered_data():
     except Exception as e:
         return str(e), 500
 
+@app.route('/apply_kmedoids', methods=['POST'])
+def apply_kmedoids():
+    try:
+        # Get the number of clusters from the form
+        n_clusters = int(request.form['n_clusters'])
 
+        # Reload the dataset from the session
+        filepath = session.get('uploaded_file')
+        if not filepath:
+            return "No dataset found. Please upload a dataset first.", 400
+
+        df, data = load_dataset(filepath, normalize=True)
+        data = StandardScaler().fit_transform(df.select_dtypes(include=['float64', 'int64']))
+
+        # Apply K-Medoids clustering
+        df_clustered, metrics_dict, kmedoids_image = apply_kmedoids(df, data, n_clusters)
+
+        # Save the clustered dataset back to the session
+
+        # Return the partial template for K-Medoids results
+        return render_template(
+            'kmedoids_partial.html',
+            kmedoids_image=kmedoids_image,
+            clustered_data=df_clustered.to_html(classes='table table-striped', index=False),
+            metrics=metrics_dict,
+            time=time.time()
+        )
+    except Exception as e:
+        return str(e), 500
 @app.route('/apply_kmeans', methods=['POST'])
 def apply_kmeans():
     try:
