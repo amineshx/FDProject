@@ -302,6 +302,52 @@ def apply_kmedoids(df, data, n_clusters):
 
     return df_clustered, metrics_dict, 'kmedoids.png'
 
+def perform_kmedoids(df, data, n_clusters):
+    """
+    Applies K-Medoids clustering and visualizes the results.
+
+    Parameters:
+    - df: Original DataFrame (non-normalized).
+    - data: Normalized data (numpy array).
+    - n_clusters: Number of clusters.
+
+    Returns:
+    - df_clustered: DataFrame with cluster labels.
+    - metrics_dict: Dictionary with clustering metrics.
+    - kmedoids_image: Path to the saved K-Medoids visualization.
+    """
+    # Apply K-Medoids
+    kmedoids = KMedoids(n_clusters=n_clusters, random_state=42)
+    labels = kmedoids.fit_predict(data)
+
+    # Create a DataFrame with cluster labels
+    df_clustered = df.copy()
+    df_clustered['Cluster'] = labels
+
+    # Compute clustering metrics
+    metrics_dict = compute_clustering_metrics(data, labels, display=True)
+
+    # Visualize the clusters
+    plt.figure(figsize=(8, 6))
+    scatter = plt.scatter(data[:, 0], data[:, 1], c=labels, cmap='viridis', edgecolor='k', label='Clusters')
+    plt.scatter(kmedoids.cluster_centers_[:, 0], kmedoids.cluster_centers_[:, 1],
+                c='red', s=200, marker='X', label='Medoids')
+    plt.xlabel("Dimension 1")
+    plt.ylabel("Dimension 2")
+    plt.title(f"K-Medoids Clustering (k={n_clusters})")
+    plt.legend()
+    plt.grid(True)
+
+    # Save the figure to the static directory
+    static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static')
+    os.makedirs(static_dir, exist_ok=True)
+    kmedoids_path = os.path.join(static_dir, 'kmedoids.png')
+    plt.savefig(kmedoids_path)
+    plt.close()
+    print(f"Saving kmedoids.png to: {kmedoids_path}")
+
+    return df_clustered, metrics_dict, 'kmedoids.png'
+
 def apply_agnes_and_plot_dendrogram(data, n_clusters=3, method='ward'):
     """
     Applique AGNES et affiche le dendrogramme avec une ligne de coupe.
@@ -1234,10 +1280,8 @@ def apply_kmedoids():
         df, data = load_dataset(filepath, normalize=True)
         data = StandardScaler().fit_transform(df.select_dtypes(include=['float64', 'int64']))
 
-        # Apply K-Medoids clustering
-        df_clustered, metrics_dict, kmedoids_image = apply_kmedoids(df, data, n_clusters)
-
-        # Save the clustered dataset back to the session
+        # Call the renamed function
+        df_clustered, metrics_dict, kmedoids_image = perform_kmedoids(df, data, n_clusters)
 
         # Return the partial template for K-Medoids results
         return render_template(
@@ -1249,6 +1293,7 @@ def apply_kmedoids():
         )
     except Exception as e:
         return str(e), 500
+    
 @app.route('/apply_kmeans', methods=['POST'])
 def apply_kmeans():
     try:
