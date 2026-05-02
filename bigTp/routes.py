@@ -883,7 +883,7 @@ def balance_clusters(labels, data, target_clusters=3):
     Retourne :
     - new_labels : étiquettes après équilibrage
     """
-    from sklearn.cluster import KMeans
+    
     
     # Compter les clusters actuels (hors bruit)
     unique_labels = sorted(list(set(labels)))
@@ -1152,6 +1152,18 @@ def update_session_comparison(algo_name, labels, data, min_clusters=2):
             except:
                 pass
                 
+    # Print out metrics for easy copy-pasting
+    print(f"\n=========================================")
+    print(f"       METRICS FOR {algo_name.upper()}")
+    print(f"=========================================")
+    for metric, value in metrics_dict.items():
+        if value is not None:
+            if isinstance(value, float):
+                print(f"{metric}: {value:.4f}")
+            else:
+                print(f"{metric}: {value}")
+    print("=========================================\n")
+
     comparison[algo_name] = metrics_dict
     session['comparison'] = comparison
     session.modified = True
