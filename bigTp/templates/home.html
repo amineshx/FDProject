@@ -10,143 +10,188 @@
 </head>
 <body>
 
-<div class="container">
-    <h1><i class="bi bi-graph-up me-2"></i>Clustering Analysis Platform</h1>
-    
-    <div class="alert alert-light border" style="margin-bottom: 30px;">
-        <p class="mb-0">
-            <strong>Welcome!</strong> This platform allows you to apply various clustering algorithms to your dataset 
-            and compare their performance using standard metrics.
-        </p>
-    </div>
+<div class="container-fluid">
+  <div class="row">
+    <!-- Sidebar -->
+    <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse" style="position: fixed; top: 0; bottom: 0; left: 0; z-index: 100; padding-top: 20px; box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1); overflow-y: auto;">
+      <div class="position-sticky pt-3">
+        <h4 class="px-3 mb-4"><i class="bi bi-graph-up me-2"></i>Analysis</h4>
+        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+          <span>Data Preprocessing</span>
+        </h6>
+        <ul class="nav flex-column">
+          <li class="nav-item"><a class="nav-link text-dark sidebar-link active" href="#" data-target="section-step1">Upload Dataset</a></li>
+          <li class="nav-item"><a class="nav-link text-dark sidebar-link" href="#" data-target="section-step2">Dataset Summary</a></li>
+          <li class="nav-item"><a class="nav-link text-dark sidebar-link" href="#" data-target="section-boxplots">Boxplots</a></li>
+          <li class="nav-item"><a class="nav-link text-dark sidebar-link" href="#" data-target="section-scatter">Scatter Plot</a></li>
+          <li class="nav-item"><a class="nav-link text-dark sidebar-link" href="#" data-target="section-elbow">Elbow Curve</a></li>
+          <li class="nav-item"><a class="nav-link text-dark sidebar-link" href="#" data-target="section-kdistance">K-Distance Graph</a></li>
+        </ul>
 
-    <!-- File Upload Section -->
-    <h2><i class="bi bi-cloud-upload me-2"></i>Step 1: Upload Dataset</h2>
-    <form method="POST" enctype="multipart/form-data" style="margin-bottom: 30px;">
-        <div class="row">
-            <div class="col-md-8">
-                <label for="file" class="form-label">Select a CSV or TSV file</label>
-                <input class="form-control" type="file" name="file" id="file" accept=".csv,.tsv,.trff" required>
-                <small class="text-muted">Supported formats: CSV, TSV, TRFF</small>
-            </div>
-            <div class="col-md-4 d-flex align-items-end">
-                <button class="btn btn-primary w-100" type="submit">
-                    <i class="bi bi-upload me-2"></i>Upload Dataset
-                </button>
+        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+          <span>Clustering</span>
+        </h6>
+        <ul class="nav flex-column mb-2">
+          <li class="nav-item"><a class="nav-link text-dark sidebar-link" href="#" data-target="kmeans-section">K-Means</a></li>
+          <li class="nav-item"><a class="nav-link text-dark sidebar-link" href="#" data-target="kmedoids-section">K-Medoids</a></li>
+          <li class="nav-item"><a class="nav-link text-dark sidebar-link" href="#" data-target="agnes-section">AGNES</a></li>
+          <li class="nav-item"><a class="nav-link text-dark sidebar-link" href="#" data-target="diana-section">DIANA</a></li>
+          <li class="nav-item"><a class="nav-link text-dark sidebar-link" href="#" data-target="dbscan-section">DBSCAN</a></li>
+          <li class="nav-item"><a class="nav-link text-dark sidebar-link" href="#" data-target="section-comparison">Comparison</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 mt-4" style="padding-bottom: 100px;">
+        <div id="section-welcome" class="layout-section">
+            <h1><i class="bi bi-graph-up me-2"></i>Clustering Analysis Platform</h1>
+        
+            <div class="alert alert-light border" style="margin-bottom: 30px;">
+                <p class="mb-0">
+                    <strong>Welcome!</strong> This platform allows you to apply various clustering algorithms to your dataset 
+                    and compare their performance using standard metrics.
+                </p>
             </div>
         </div>
-    </form>
 
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <div class="alert alert-warning mt-3">
-          <i class="bi bi-exclamation-circle me-2"></i>
-          {% for message in messages %}
-            <p class="mb-1">{{ message }}</p>
-          {% endfor %}
+        <!-- File Upload Section -->
+        <div id="section-step1" class="layout-section">
+            <h2 id="step1"><i class="bi bi-cloud-upload me-2"></i>Step 1: Upload Dataset</h2>
+            <form method="POST" enctype="multipart/form-data" style="margin-bottom: 30px;">
+                <div class="row">
+                    <div class="col-md-8">
+                        <label for="file" class="form-label">Select a CSV or TSV file</label>
+                        <input class="form-control" type="file" name="file" id="file" accept=".csv,.tsv,.trff" required>
+                        <small class="text-muted">Supported formats: CSV, TSV, TRFF</small>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button class="btn btn-primary w-100" type="submit">
+                            <i class="bi bi-upload me-2"></i>Upload Dataset
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                <div class="alert alert-warning mt-3">
+                  <i class="bi bi-exclamation-circle me-2"></i>
+                  {% for message in messages %}
+                    <p class="mb-1">{{ message }}</p>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            {% endwith %}
+
+            {% if preview %}
+            <h2 class="mt-5"><i class="bi bi-eye me-2"></i>Dataset Preview</h2>
+            <div class="table-responsive" style="margin-bottom: 30px;">
+                {{ preview|safe }}
+            </div>
+            {% endif %}
         </div>
-      {% endif %}
-    {% endwith %}
-
-    {% if preview %}
-    <h2 class="mt-5"><i class="bi bi-eye me-2"></i>Dataset Preview</h2>
-    <div class="table-responsive" style="margin-bottom: 30px;">
-        {{ preview|safe }}
-    </div>
-    {% endif %}
     
 
     {% if dataset_summary %}
-    <h2 class="mt-5"><i class="bi bi-info-circle me-2"></i>Step 2: Dataset Summary</h2>
+    <div id="section-step2" class="layout-section" style="display: none;">
+        <h2 id="step2" class="mt-5"><i class="bi bi-info-circle me-2"></i>Step 2: Dataset Summary</h2>
 
-    <h4 class="mt-4"><i class="bi bi-rulers me-2"></i>Dimensions</h4>
-    <div class="alert alert-light border">
-        <p class="mb-0">{{ dataset_summary.dimensions }}</p>
-    </div>
-
-    <h4 class="mt-4"><i class="bi bi-code me-2"></i>Data Types</h4>
-    <div class="table-responsive">
-        {{ dataset_summary.data_types|safe }}
-    </div>
-
-    <h4 class="mt-4"><i class="bi bi-exclamation-triangle me-2"></i>Missing Values</h4>
-    <div class="table-responsive">
-        {{ dataset_summary.missing_values|safe }}
-    </div>
-
-    <h4 class="mt-4"><i class="bi bi-bar-chart me-2"></i>Descriptive Statistics</h4>
-    <div class="table-responsive">
-        {{ dataset_summary.descriptive_stats|safe }}
-    </div>
-
-    {% if dataset_summary and dataset_summary.missing_values|safe and dataset_summary.missing_values|safe != '<table class="dataframe table table-striped"><thead><tr><th>Column</th><th>Missing Values</th></tr></thead><tbody></tbody></table>' %}
-    <h2 class="mt-5"><i class="bi bi-hammer me-2"></i>Handle Missing Values</h2>
-    <form id="missing-values-form" method="POST">
-        <div class="row">
-            <div class="col-md-6">
-                <label for="method" class="form-label">Choose a method to fill missing values</label>
-                <select class="form-select" name="method" id="method" required>
-                    <option value="mean">Fill with Mean</option>
-                    <option value="median">Fill with Median</option>
-                </select>
-            </div>
-            <div class="col-md-6 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">Apply Method</button>
-            </div>
+        <h4 class="mt-4"><i class="bi bi-rulers me-2"></i>Dimensions</h4>
+        <div class="alert alert-light border">
+            <p class="mb-0">{{ dataset_summary.dimensions }}</p>
         </div>
-    </form>
-    <div id="missing-values-results-section" class="mt-5"></div>
-    {% endif %}
+
+        <h4 class="mt-4"><i class="bi bi-code me-2"></i>Data Types</h4>
+        <div class="table-responsive">
+            {{ dataset_summary.data_types|safe }}
+        </div>
+
+        <h4 class="mt-4"><i class="bi bi-exclamation-triangle me-2"></i>Missing Values</h4>
+        <div class="table-responsive">
+            {{ dataset_summary.missing_values|safe }}
+        </div>
+
+        <h4 class="mt-4"><i class="bi bi-bar-chart me-2"></i>Descriptive Statistics</h4>
+        <div class="table-responsive">
+            {{ dataset_summary.descriptive_stats|safe }}
+        </div>
+
+        {% if dataset_summary and dataset_summary.missing_values|safe and dataset_summary.missing_values|safe != '<table class="dataframe table table-striped"><thead><tr><th>Column</th><th>Missing Values</th></tr></thead><tbody></tbody></table>' %}
+        <h2 id="missing-values" class="mt-5"><i class="bi bi-hammer me-2"></i>Handle Missing Values</h2>
+        <form id="missing-values-form" method="POST">
+            <div class="row">
+                <div class="col-md-6">
+                    <label for="method" class="form-label">Choose a method to fill missing values</label>
+                    <select class="form-select" name="method" id="method" required>
+                        <option value="mean">Fill with Mean</option>
+                        <option value="median">Fill with Median</option>
+                    </select>
+                </div>
+                <div class="col-md-6 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Apply Method</button>
+                </div>
+            </div>
+        </form>
+        <div id="missing-values-results-section" class="mt-5"></div>
+        {% endif %}
+    </div>
     {% endif %}
 
     {% if boxplot_image %}
-    <h2 class="mt-5"><i class="bi bi-box-seam me-2"></i>Data Distribution Analysis</h2>
-    <p class="text-muted">Boxplots show the distribution of each variable, including median, quartiles, and outliers.</p>
-    <img src="{{ url_for('static', filename='boxplots.png') }}" alt="Boxplots" class="img-fluid">
+    <div id="section-boxplots" class="layout-section" style="display: none;">
+        <h2 id="boxplots" class="mt-5"><i class="bi bi-box-seam me-2"></i>Data Distribution Analysis</h2>
+        <p class="text-muted">Boxplots show the distribution of each variable, including median, quartiles, and outliers.</p>
+        <img src="{{ url_for('static', filename='boxplots.png') }}" alt="Boxplots" class="img-fluid">
+    </div>
     {% endif %}
 
     {% if columns %}
-    <h2 class="mt-5"><i class="bi bi-scatter me-2"></i>Generate Scatter Plot</h2>
-    <p class="text-muted">Visualize the relationship between two variables in your dataset.</p>
-    <form id="scatter-form" method="POST">
-        <div class="row">
-            <div class="col-md-5">
-                <label for="col1" class="form-label">Select Column 1</label>
-                <select class="form-select" name="col1" id="col1" required>
-                    {% for col in columns %}
-                        <option value="{{ col }}">{{ col }}</option>
-                    {% endfor %}
-                </select>
+    <div id="section-scatter" class="layout-section" style="display: none;">
+        <h2 id="scatter-plot-anchor" class="mt-5"><i class="bi bi-scatter me-2"></i>Generate Scatter Plot</h2>
+        <p class="text-muted">Visualize the relationship between two variables in your dataset.</p>
+        <form id="scatter-form" method="POST">
+            <div class="row">
+                <div class="col-md-5">
+                    <label for="col1" class="form-label">Select Column 1</label>
+                    <select class="form-select" name="col1" id="col1" required>
+                        {% for col in columns %}
+                            <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <label for="col2" class="form-label">Select Column 2</label>
+                    <select class="form-select" name="col2" id="col2" required>
+                        {% for col in columns %}
+                            <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Generate</button>
+                </div>
             </div>
-            <div class="col-md-5">
-                <label for="col2" class="form-label">Select Column 2</label>
-                <select class="form-select" name="col2" id="col2" required>
-                    {% for col in columns %}
-                        <option value="{{ col }}">{{ col }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">Generate</button>
-            </div>
+        </form>
+        <div id="scatter-plot-section" class="mt-5">
+            {% if scatter_image %}
+            <img src="{{ url_for('static', filename='scatter.png') }}" alt="Scatter Plot" class="img-fluid">
+            {% endif %}
         </div>
-    </form>
-    <div id="scatter-plot-section" class="mt-5">
-        {% if scatter_image %}
-        <img src="{{ url_for('static', filename='scatter.png') }}" alt="Scatter Plot" class="img-fluid">
-        {% endif %}
     </div>
 
     {% if elbow_image %}
-    <h2 class="mt-5"><i class="bi bi-graph-up me-2"></i>Elbow Method Curve</h2>
-    <p class="text-muted">The elbow method helps determine the optimal number of clusters for K-Means.</p>
-    <img src="{{ url_for('static', filename='elbow.png') }}" alt="Elbow Curve" class="img-fluid">
+    <div id="section-elbow" class="layout-section" style="display: none;">
+        <h2 id="elbow-curve" class="mt-5"><i class="bi bi-graph-up me-2"></i>Elbow Method Curve</h2>
+        <p class="text-muted">The elbow method helps determine the optimal number of clusters for K-Means.</p>
+        <img src="{{ url_for('static', filename='elbow.png') }}" alt="Elbow Curve" class="img-fluid">
+    </div>
     {% endif %}
 
     <h2 class="mt-5"><i class="bi bi-cluster-fill me-2"></i>Step 3: Apply Clustering Algorithms</h2>
 
     <!-- K-Means -->
-    <div style="margin-top: 40px; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #3498db;">
+    <div id="kmeans-section" class="layout-section" style="display: none; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #3498db;">
         <h4><i class="bi bi-diagram-3 me-2"></i>K-Means Clustering</h4>
         <p class="text-muted small">Partition-based algorithm that minimizes within-cluster variance.</p>
         <form id="kmeans-form" method="POST">
@@ -164,7 +209,7 @@
     </div>
 
     <!-- K-Medoids -->
-    <div style="margin-top: 25px; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #27ae60;">
+    <div id="kmedoids-section" class="layout-section" style="display: none; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #27ae60;">
         <h4><i class="bi bi-diagram-3 me-2"></i>K-Medoids Clustering</h4>
         <p class="text-muted small">Like K-Means but uses actual data points (medoids) as cluster centers.</p>
         <form id="kmedoids-form" method="POST">
@@ -182,7 +227,7 @@
     </div>
 
     <!-- AGNES -->
-    <div style="margin-top: 25px; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #e67e22;">
+    <div id="agnes-section" class="layout-section" style="display: none; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #e67e22;">
         <h4><i class="bi bi-diagram-3 me-2"></i>AGNES (Agglomerative Hierarchical Clustering)</h4>
         <p class="text-muted small">Bottom-up hierarchical algorithm starting from individual points and merging them.</p>
         <form id="agnes-form" method="POST">
@@ -209,7 +254,7 @@
     </div>
 
     <!-- DIANA -->
-    <div style="margin-top: 25px; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #9b59b6;">
+    <div id="diana-section" class="layout-section" style="display: none; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #9b59b6;">
         <h4><i class="bi bi-diagram-3 me-2"></i>DIANA (Divisive Hierarchical Clustering)</h4>
         <p class="text-muted small">Top-down hierarchical algorithm starting from all points together and splitting them.</p>
         <form id="diana-form" method="POST">
@@ -227,7 +272,7 @@
     </div>
 
     <!-- K-Distance Graph -->
-    <div style="margin-top: 25px; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #c0392b;">
+    <div id="section-kdistance" class="layout-section" style="display: none; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #c0392b;">
         <h4><i class="bi bi-graph-up me-2"></i>K-Distance Graph</h4>
         <p class="text-muted small">Generate a K-distance graph to find optimal epsilon for DBSCAN.</p>
         <form id="k-distance-form" method="POST">
@@ -245,7 +290,7 @@
     </div>
 
     <!-- DBSCAN -->
-    <div style="margin-top: 25px; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #16a085;">
+    <div id="dbscan-section" class="layout-section" style="display: none; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #16a085;">
         <h4><i class="bi bi-diagram-3 me-2"></i>DBSCAN (Density-Based Clustering)</h4>
         <p class="text-muted small">Finds clusters of arbitrary shape based on data density.</p>
         <form id="dbscan-form" method="POST">
@@ -266,15 +311,19 @@
         <div id="dbscan-results-section" class="mt-4"></div>
     </div>
 
-    <h2 class="mt-5"><i class="bi bi-bar-chart me-2"></i>Comparison</h2>
-    <p class="text-muted">Compare the performance of all applied algorithms using standard evaluation metrics.</p>
-    <div id="comparison-section" class="mt-4">
-        <!-- Comparison results will be inserted here -->
+    <div id="section-comparison" class="layout-section" style="display: none;">
+        <h2 id="comparison-anchor" class="mt-5"><i class="bi bi-bar-chart me-2"></i>Comparison</h2>
+        <p class="text-muted">Compare the performance of all applied algorithms using standard evaluation metrics.</p>
+        <div id="comparison-section" class="mt-4">
+            <!-- Comparison results will be inserted here -->
+        </div>
     </div>
 
     {% endif %}
     <!-- End of dataset content -->
 
+    </main>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -322,6 +371,39 @@
   attachFormListener('dbscan-form', 'dbscan-results-section', '{{ url_for("apply_dbscan") }}');
   attachFormListener('kmedoids-form', 'kmedoids-results-section', '{{ url_for("apply_kmedoids") }}');
   attachFormListener('missing-values-form', 'missing-values-results-section', '{{ url_for("handle_missing_values") }}');
+  // Make sidebar buttons behave like tabs
+  document.querySelectorAll('.sidebar-link').forEach(link => {
+      link.addEventListener('click', function(e) {
+          e.preventDefault();
+          
+          // Remove active class from all links
+          document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active', 'fw-bold'));
+          // Add active class to clicked
+          this.classList.add('active', 'fw-bold');
+
+          // Hide all layout-section elements
+          document.querySelectorAll('.layout-section').forEach(section => {
+              section.style.display = 'none';
+          });
+          // Hide welcome
+          const welcome = document.getElementById('section-welcome');
+          if (welcome) welcome.style.display = 'none';
+          
+          // Hide Step 3 title if it exists, since we show algorithms individually
+          const clusterTitle = document.querySelector('h2 > i.bi-cluster-fill');
+          if (clusterTitle && clusterTitle.parentElement) {
+              clusterTitle.parentElement.style.display = 'none';
+          }
+
+          // Show the target section
+          const targetId = this.getAttribute('data-target');
+          const targetEl = document.getElementById(targetId);
+          if (targetEl) {
+              targetEl.style.display = 'block';
+          }
+      });
+  });
+
 </script>
 
 </body>

@@ -235,15 +235,29 @@ def apply_kmeans_show_classes(df, data, n_clusters, class_col_candidates=['Class
     # Calculer les métriques de clustering
     metrics_dict = compute_clustering_metrics(data, labels, display=True)
 
-    # Affichage : scatter plot sur les 2 premières dimensions
+    # Affichage : scatter plot avec PCA si plus de 2 dimensions
     plt.clf()
     plt.figure(figsize=(8, 6))
-    scatter = plt.scatter(data.iloc[:, 0], data.iloc[:, 1], c=labels, cmap='viridis', edgecolor='k', label='Clusters')
-    plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1],
+
+    if data.shape[1] > 2:
+        pca = PCA(n_components=2)
+        data_2d = pca.fit_transform(data)
+        centers_2d = pca.transform(kmeans.cluster_centers_)
+        xlabel, ylabel = "PCA Dimension 1", "PCA Dimension 2"
+        title = f"K-Means Clustering with PCA (k={n_clusters})"
+    else:
+        data_2d = data.values if isinstance(data, pd.DataFrame) else data
+        centers_2d = kmeans.cluster_centers_
+        xlabel = data.columns[0] if isinstance(data, pd.DataFrame) else "Dimension 1"
+        ylabel = data.columns[1] if isinstance(data, pd.DataFrame) else "Dimension 2"
+        title = f"K-Means Clustering (k={n_clusters})"
+
+    scatter = plt.scatter(data_2d[:, 0], data_2d[:, 1], c=labels, cmap='viridis', edgecolor='k', label='Clusters')
+    plt.scatter(centers_2d[:, 0], centers_2d[:, 1],
                 c='red', s=200, marker='X', label='Centroïdes')
-    plt.xlabel(data.columns[0])
-    plt.ylabel(data.columns[1])
-    plt.title(f"K-Means Clustering (k={n_clusters})")
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
     plt.legend()
     plt.grid(True)
 
@@ -284,12 +298,25 @@ def apply_kmedoids(df, data, n_clusters):
 
     # Visualize the clusters
     plt.figure(figsize=(8, 6))
-    scatter = plt.scatter(data[:, 0], data[:, 1], c=labels, cmap='viridis', edgecolor='k', label='Clusters')
-    plt.scatter(kmedoids.cluster_centers_[:, 0], kmedoids.cluster_centers_[:, 1],
+
+    if data.shape[1] > 2:
+        pca = PCA(n_components=2)
+        data_2d = pca.fit_transform(data)
+        centers_2d = pca.transform(kmedoids.cluster_centers_)
+        xlabel, ylabel = "PCA Dimension 1", "PCA Dimension 2"
+        title = f"K-Medoids Clustering with PCA (k={n_clusters})"
+    else:
+        data_2d = data
+        centers_2d = kmedoids.cluster_centers_
+        xlabel, ylabel = "Dimension 1", "Dimension 2"
+        title = f"K-Medoids Clustering (k={n_clusters})"
+
+    scatter = plt.scatter(data_2d[:, 0], data_2d[:, 1], c=labels, cmap='viridis', edgecolor='k', label='Clusters')
+    plt.scatter(centers_2d[:, 0], centers_2d[:, 1],
                 c='red', s=200, marker='X', label='Medoids')
-    plt.xlabel("Dimension 1")
-    plt.ylabel("Dimension 2")
-    plt.title(f"K-Medoids Clustering (k={n_clusters})")
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
     plt.legend()
     plt.grid(True)
 
@@ -331,12 +358,25 @@ def perform_kmedoids(df, data, n_clusters):
     # Visualize the clusters
     plt.clf()
     plt.figure(figsize=(8, 6))
-    scatter = plt.scatter(data[:, 0], data[:, 1], c=labels, cmap='viridis', edgecolor='k', label='Clusters')
-    plt.scatter(kmedoids.cluster_centers_[:, 0], kmedoids.cluster_centers_[:, 1],
+
+    if data.shape[1] > 2:
+        pca = PCA(n_components=2)
+        data_2d = pca.fit_transform(data)
+        centers_2d = pca.transform(kmedoids.cluster_centers_)
+        xlabel, ylabel = "PCA Dimension 1", "PCA Dimension 2"
+        title = f"K-Medoids Clustering with PCA (k={n_clusters})"
+    else:
+        data_2d = data
+        centers_2d = kmedoids.cluster_centers_
+        xlabel, ylabel = "Dimension 1", "Dimension 2"
+        title = f"K-Medoids Clustering (k={n_clusters})"
+
+    scatter = plt.scatter(data_2d[:, 0], data_2d[:, 1], c=labels, cmap='viridis', edgecolor='k', label='Clusters')
+    plt.scatter(centers_2d[:, 0], centers_2d[:, 1],
                 c='red', s=200, marker='X', label='Medoids')
-    plt.xlabel("Dimension 1")
-    plt.ylabel("Dimension 2")
-    plt.title(f"K-Medoids Clustering (k={n_clusters})")
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
     plt.legend()
     plt.grid(True)
 
