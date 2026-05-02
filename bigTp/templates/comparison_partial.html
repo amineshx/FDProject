@@ -1,0 +1,71 @@
+{% if comparison %}
+<div>
+  <div class="alert alert-info alert-sm py-2 mb-3">
+    <i class="bi bi-info-circle me-2"></i>
+    Comprehensive comparison of all clustering algorithms applied to the same dataset.
+  </div>
+
+  <h5 class="fw-semibold mb-3">Global Clustering Performance Comparison</h5>
+  <div class="table-responsive">
+    <table class="table comparison-table table-bordered align-middle">
+      <thead>
+        <tr>
+          <th>Algorithm</th>
+          <th>Clusters</th>
+          <th>Silhouette Score <small class="fw-normal opacity-75">(↑ higher = better)</small></th>
+          <th>Davies-Bouldin <small class="fw-normal opacity-75">(↓ lower = better)</small></th>
+          <th>Calinski-Harabasz <small class="fw-normal opacity-75">(↑ higher = better)</small></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for algo, m in comparison.items() %}
+        <tr>
+          <td><strong>{{ algo }}</strong></td>
+          <td>{{ m.n_clusters }}</td>
+          <td>
+            {% if m['Silhouette Score'] is not none %}
+              <span class="badge bg-info">{{ m['Silhouette Score']|round(3) }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if m['Davies-Bouldin Index'] is not none %}
+              <span class="badge bg-warning">{{ m['Davies-Bouldin Index']|round(3) }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if m['Calinski-Harabasz Index'] is not none %}
+              <span class="badge bg-success">{{ m['Calinski-Harabasz Index']|round(3) }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="alert alert-light border mt-3 small">
+    <strong>📊 Interpretation Guide:</strong><br>
+    <ul class="mb-0">
+      <li><strong>Silhouette Score:</strong> Measures how similar an object is to its own cluster compared to other clusters. Range: −1 to 1. <strong>Closer to 1</strong> means better-defined clusters.</li>
+      <li><strong>Davies-Bouldin Index:</strong> Average similarity between each cluster and its most similar cluster. <strong>Lower</strong> values indicate better separation between clusters.</li>
+      <li><strong>Calinski-Harabasz Index:</strong> Ratio of between-cluster dispersion to within-cluster dispersion. <strong>Higher</strong> values indicate better-defined clusters.</li>
+    </ul>
+  </div>
+
+  <div class="alert alert-secondary py-2 small mt-3">
+    <strong>💡 Recommendation:</strong> No single metric is perfect. Use these metrics together to evaluate which algorithm performs best for your data. Consider your domain knowledge and the structure you expect in your data.
+  </div>
+</div>
+
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="bi bi-hourglass" style="font-size:3rem;margin-bottom:15px;opacity:0.5"></i>
+  <p class="mt-3" style="font-size:1rem;">Run at least one clustering algorithm to see the comparison.</p>
+</div>
+{% endif %}

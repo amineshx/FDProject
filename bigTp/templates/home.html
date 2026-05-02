@@ -2,61 +2,85 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TP FD</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clustering Analysis - TP FD</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body class="container mt-5">
+<body>
 
-    <h1>Upload your dataset</h1>
+<div class="container">
+    <h1><i class="bi bi-graph-up me-2"></i>Clustering Analysis Platform</h1>
     
-    <form method="POST" enctype="multipart/form-data">
-        <div class="mb-3">
-            <input class="form-control" type="file" name="file">
+    <div class="alert alert-light border" style="margin-bottom: 30px;">
+        <p class="mb-0">
+            <strong>Welcome!</strong> This platform allows you to apply various clustering algorithms to your dataset 
+            and compare their performance using standard metrics.
+        </p>
+    </div>
+
+    <!-- File Upload Section -->
+    <h2><i class="bi bi-cloud-upload me-2"></i>Step 1: Upload Dataset</h2>
+    <form method="POST" enctype="multipart/form-data" style="margin-bottom: 30px;">
+        <div class="row">
+            <div class="col-md-8">
+                <label for="file" class="form-label">Select a CSV or TSV file</label>
+                <input class="form-control" type="file" name="file" id="file" accept=".csv,.tsv,.trff" required>
+                <small class="text-muted">Supported formats: CSV, TSV, TRFF</small>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-primary w-100" type="submit">
+                    <i class="bi bi-upload me-2"></i>Upload Dataset
+                </button>
+            </div>
         </div>
-        <button class="btn btn-primary" type="submit">Upload</button>
     </form>
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}
         <div class="alert alert-warning mt-3">
+          <i class="bi bi-exclamation-circle me-2"></i>
           {% for message in messages %}
-            <p>{{ message }}</p>
+            <p class="mb-1">{{ message }}</p>
           {% endfor %}
         </div>
       {% endif %}
     {% endwith %}
 
     {% if preview %}
-        <h2 class="mt-5">Preview of the dataset</h2>
-        <div class="table-responsive overflow">
-            {{ preview|safe }}
-        </div>
+    <h2 class="mt-5"><i class="bi bi-eye me-2"></i>Dataset Preview</h2>
+    <div class="table-responsive" style="margin-bottom: 30px;">
+        {{ preview|safe }}
+    </div>
     {% endif %}
     
 
     {% if dataset_summary %}
-    <h2 class="mt-5">Dataset Summary</h2>
+    <h2 class="mt-5"><i class="bi bi-info-circle me-2"></i>Step 2: Dataset Summary</h2>
 
-    <h4 class="mt-4">Dimensions</h4>
-    <p>{{ dataset_summary.dimensions }}</p>
+    <h4 class="mt-4"><i class="bi bi-rulers me-2"></i>Dimensions</h4>
+    <div class="alert alert-light border">
+        <p class="mb-0">{{ dataset_summary.dimensions }}</p>
+    </div>
 
-    <h4 class="mt-4">Data Types</h4>
-    <div class="table-responsive overflow">
+    <h4 class="mt-4"><i class="bi bi-code me-2"></i>Data Types</h4>
+    <div class="table-responsive">
         {{ dataset_summary.data_types|safe }}
     </div>
 
-    <h4 class="mt-4">Missing Values</h4>
-    <div class="table-responsive overflow">
+    <h4 class="mt-4"><i class="bi bi-exclamation-triangle me-2"></i>Missing Values</h4>
+    <div class="table-responsive">
         {{ dataset_summary.missing_values|safe }}
     </div>
 
-    <h4 class="mt-4">Descriptive Statistics</h4>
-    <div class="table-responsive overflow">
+    <h4 class="mt-4"><i class="bi bi-bar-chart me-2"></i>Descriptive Statistics</h4>
+    <div class="table-responsive">
         {{ dataset_summary.descriptive_stats|safe }}
     </div>
-{% endif %}
-{% if dataset_summary and dataset_summary.missing_values|safe and dataset_summary.missing_values|safe != '<table class="dataframe table table-striped"><thead><tr><th>Column</th><th>Missing Values</th></tr></thead><tbody></tbody></table>' %}
-    <h2 class="mt-5">Handle Missing Values</h2>
+
+    {% if dataset_summary and dataset_summary.missing_values|safe and dataset_summary.missing_values|safe != '<table class="dataframe table table-striped"><thead><tr><th>Column</th><th>Missing Values</th></tr></thead><tbody></tbody></table>' %}
+    <h2 class="mt-5"><i class="bi bi-hammer me-2"></i>Handle Missing Values</h2>
     <form id="missing-values-form" method="POST">
         <div class="row">
             <div class="col-md-6">
@@ -67,20 +91,23 @@
                 </select>
             </div>
             <div class="col-md-6 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary">Apply</button>
+                <button type="submit" class="btn btn-primary w-100">Apply Method</button>
             </div>
         </div>
     </form>
-    <div id="missing-values-results-section" class="mt-5">
-        <!-- Updated dataset summary will be dynamically inserted here -->
-    </div>
-{% endif %}
-{% if boxplot_image %}
-    <h2 class="mt-5">Boxplots of Variables</h2>
+    <div id="missing-values-results-section" class="mt-5"></div>
+    {% endif %}
+    {% endif %}
+
+    {% if boxplot_image %}
+    <h2 class="mt-5"><i class="bi bi-box-seam me-2"></i>Data Distribution Analysis</h2>
+    <p class="text-muted">Boxplots show the distribution of each variable, including median, quartiles, and outliers.</p>
     <img src="{{ url_for('static', filename='boxplots.png') }}" alt="Boxplots" class="img-fluid">
-{% endif %}
-{% if columns %}
-    <h2 class="mt-5">Generate Scatter Plot</h2>
+    {% endif %}
+
+    {% if columns %}
+    <h2 class="mt-5"><i class="bi bi-scatter me-2"></i>Generate Scatter Plot</h2>
+    <p class="text-muted">Visualize the relationship between two variables in your dataset.</p>
     <form id="scatter-form" method="POST">
         <div class="row">
             <div class="col-md-5">
@@ -100,143 +127,163 @@
                 </select>
             </div>
             <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary">Generate Scatter Plot</button>
+                <button type="submit" class="btn btn-primary w-100">Generate</button>
             </div>
         </div>
     </form>
     <div id="scatter-plot-section" class="mt-5">
         {% if scatter_image %}
-            <h2>Scatter Plot</h2>
-            <img src="{{ url_for('static', filename='scatter.png') }}" alt="Scatter Plot" class="img-fluid">
+        <img src="{{ url_for('static', filename='scatter.png') }}" alt="Scatter Plot" class="img-fluid">
         {% endif %}
     </div>
-{% endif %}
-{% if elbow_image %}
-    <h2 class="mt-5">Elbow Method Curve</h2>
+
+    {% if elbow_image %}
+    <h2 class="mt-5"><i class="bi bi-graph-up me-2"></i>Elbow Method Curve</h2>
+    <p class="text-muted">The elbow method helps determine the optimal number of clusters for K-Means.</p>
     <img src="{{ url_for('static', filename='elbow.png') }}" alt="Elbow Curve" class="img-fluid">
     {% endif %}
-{% if columns %}
-    <h2 class="mt-5">Apply K-Means Clustering</h2>
-    <form id="kmeans-form" method="POST">
-        <div class="row">
-            <div class="col-md-6">
-                <label for="n_clusters" class="form-label">Number of Clusters</label>
-                <input type="number" class="form-control" name="n_clusters" id="n_clusters" min="2" required>
+
+    <h2 class="mt-5"><i class="bi bi-cluster-fill me-2"></i>Step 3: Apply Clustering Algorithms</h2>
+
+    <!-- K-Means -->
+    <div style="margin-top: 40px; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #3498db;">
+        <h4><i class="bi bi-diagram-3 me-2"></i>K-Means Clustering</h4>
+        <p class="text-muted small">Partition-based algorithm that minimizes within-cluster variance.</p>
+        <form id="kmeans-form" method="POST">
+            <div class="row">
+                <div class="col-md-8">
+                    <label for="kmeans-n_clusters" class="form-label">Number of Clusters</label>
+                    <input type="number" class="form-control" name="n_clusters" id="kmeans-n_clusters" min="2" required>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Apply K-Means</button>
+                </div>
             </div>
-            <div class="col-md-6 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary">Apply K-Means</button>
-            </div>
-        </div>
-    </form>
-    <div id="kmeans-results-section" class="mt-5">
-        <!-- K-Means results will be dynamically inserted here -->
+        </form>
+        <div id="kmeans-results-section" class="mt-4"></div>
     </div>
-{% endif %}
-{% if columns %}
-    <h2 class="mt-5">Apply K-Medoids Clustering</h2>
-    <form id="kmedoids-form" method="POST">
-        <div class="row">
-            <div class="col-md-6">
-                <label for="n_clusters" class="form-label">Number of Clusters</label>
-                <input type="number" class="form-control" name="n_clusters" id="n_clusters" min="2" required>
+
+    <!-- K-Medoids -->
+    <div style="margin-top: 25px; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #27ae60;">
+        <h4><i class="bi bi-diagram-3 me-2"></i>K-Medoids Clustering</h4>
+        <p class="text-muted small">Like K-Means but uses actual data points (medoids) as cluster centers.</p>
+        <form id="kmedoids-form" method="POST">
+            <div class="row">
+                <div class="col-md-8">
+                    <label for="kmedoids-n_clusters" class="form-label">Number of Clusters</label>
+                    <input type="number" class="form-control" name="n_clusters" id="kmedoids-n_clusters" min="2" required>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Apply K-Medoids</button>
+                </div>
             </div>
-            <div class="col-md-6 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary">Apply K-Medoids</button>
-            </div>
-        </div>
-    </form>
-    <div id="kmedoids-results-section" class="mt-5">
-        <!-- K-Medoids results will be dynamically inserted here -->
+        </form>
+        <div id="kmedoids-results-section" class="mt-4"></div>
     </div>
-{% endif %}
-{% if columns %}
-    <h2 class="mt-5">Apply AGNES Clustering</h2>
-    <form id="agnes-form" method="POST">
-        <div class="row">
-            <div class="col-md-4">
-                <label for="n_clusters" class="form-label">Number of Clusters</label>
-                <input type="number" class="form-control" name="n_clusters" id="n_clusters" min="2" required>
+
+    <!-- AGNES -->
+    <div style="margin-top: 25px; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #e67e22;">
+        <h4><i class="bi bi-diagram-3 me-2"></i>AGNES (Agglomerative Hierarchical Clustering)</h4>
+        <p class="text-muted small">Bottom-up hierarchical algorithm starting from individual points and merging them.</p>
+        <form id="agnes-form" method="POST">
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="agnes-n_clusters" class="form-label">Number of Clusters</label>
+                    <input type="number" class="form-control" name="n_clusters" id="agnes-n_clusters" min="2" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="agnes-method" class="form-label">Linkage Method</label>
+                    <select class="form-select" name="method" id="agnes-method" required>
+                        <option value="ward" selected>Ward</option>
+                        <option value="single">Single</option>
+                        <option value="complete">Complete</option>
+                        <option value="average">Average</option>
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Apply AGNES</button>
+                </div>
             </div>
-            <div class="col-md-4">
-                <label for="method" class="form-label">Linkage Method</label>
-                <select class="form-select" name="method" id="method">
-                    <option value="ward" selected>Ward</option>
-                    <option value="single">Single</option>
-                    <option value="complete">Complete</option>
-                    <option value="average">Average</option>
-                </select>
-            </div>
-            <div class="col-md-4 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary">Apply AGNES</button>
-            </div>
-        </div>
-    </form>
-    <div id="agnes-results-section" class="mt-5">
-        <!-- AGNES results will be dynamically inserted here -->
+        </form>
+        <div id="agnes-results-section" class="mt-4"></div>
     </div>
-{% endif %}
-{% if columns %}
-    <h2 class="mt-5">Apply DIANA Clustering</h2>
-    <form id="diana-form" method="POST">
-        <div class="row">
-            <div class="col-md-6">
-                <label for="n_clusters" class="form-label">Number of Clusters</label>
-                <input type="number" class="form-control" name="n_clusters" id="n_clusters" min="2" required>
+
+    <!-- DIANA -->
+    <div style="margin-top: 25px; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #9b59b6;">
+        <h4><i class="bi bi-diagram-3 me-2"></i>DIANA (Divisive Hierarchical Clustering)</h4>
+        <p class="text-muted small">Top-down hierarchical algorithm starting from all points together and splitting them.</p>
+        <form id="diana-form" method="POST">
+            <div class="row">
+                <div class="col-md-8">
+                    <label for="diana-n_clusters" class="form-label">Number of Clusters</label>
+                    <input type="number" class="form-control" name="n_clusters" id="diana-n_clusters" min="2" required>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Apply DIANA</button>
+                </div>
             </div>
-            <div class="col-md-6 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary">Apply DIANA</button>
-            </div>
-        </div>
-    </form>
-    <div id="diana-results-section" class="mt-5">
-        <!-- DIANA results will be dynamically inserted here -->
+        </form>
+        <div id="diana-results-section" class="mt-4"></div>
     </div>
-{% endif %}
-{% if columns %}
-    <h2 class="mt-5">Generate K-Distance Graph</h2>
-    <form id="k-distance-form" method="POST">
-        <div class="row">
-            <div class="col-md-6">
-                <label for="k" class="form-label">Number of Neighbors (k)</label>
-                <input type="number" class="form-control" name="k" id="k" min="1" value="4" required>
+
+    <!-- K-Distance Graph -->
+    <div style="margin-top: 25px; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #c0392b;">
+        <h4><i class="bi bi-graph-up me-2"></i>K-Distance Graph</h4>
+        <p class="text-muted small">Generate a K-distance graph to find optimal epsilon for DBSCAN.</p>
+        <form id="k-distance-form" method="POST">
+            <div class="row">
+                <div class="col-md-8">
+                    <label for="k" class="form-label">Number of Neighbors (k)</label>
+                    <input type="number" class="form-control" name="k" id="k" min="1" value="4" required>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Generate</button>
+                </div>
             </div>
-            <div class="col-md-6 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary">Generate K-Distance Graph</button>
-            </div>
-        </div>
-    </form>
-    <div id="k-distance-results-section" class="mt-5">
-        <!-- K-Distance graph results will be dynamically inserted here -->
+        </form>
+        <div id="k-distance-results-section" class="mt-4"></div>
     </div>
-{% endif %}
-{% if columns %}
-    <h2 class="mt-5">Apply DBSCAN Clustering</h2>
-    <form id="dbscan-form" method="POST">
-        <div class="row">
-            <div class="col-md-4">
-                <label for="eps" class="form-label">Epsilon (eps)</label>
-                <input type="number" class="form-control" name="eps" id="eps" step="0.01" required>
+
+    <!-- DBSCAN -->
+    <div style="margin-top: 25px; padding: 20px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #16a085;">
+        <h4><i class="bi bi-diagram-3 me-2"></i>DBSCAN (Density-Based Clustering)</h4>
+        <p class="text-muted small">Finds clusters of arbitrary shape based on data density.</p>
+        <form id="dbscan-form" method="POST">
+            <div class="row">
+                <div class="col-md-3">
+                    <label for="eps" class="form-label">Epsilon (eps)</label>
+                    <input type="number" class="form-control" name="eps" id="eps" step="0.01" required>
+                </div>
+                <div class="col-md-3">
+                    <label for="min_samples" class="form-label">Min Samples</label>
+                    <input type="number" class="form-control" name="min_samples" id="min_samples" min="1" value="5" required>
+                </div>
+                <div class="col-md-6 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Apply DBSCAN</button>
+                </div>
             </div>
-            <div class="col-md-4">
-                <label for="min_samples" class="form-label">Min Samples</label>
-                <input type="number" class="form-control" name="min_samples" id="min_samples" min="1" required>
-            </div>
-            <div class="col-md-4 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary">Apply DBSCAN</button>
-            </div>
-        </div>
-    </form>
-    <div id="dbscan-results-section" class="mt-5">
-        <!-- DBSCAN results will be dynamically inserted here -->
+        </form>
+        <div id="dbscan-results-section" class="mt-4"></div>
     </div>
-{% endif %}
+
+    <h2 class="mt-5"><i class="bi bi-bar-chart me-2"></i>Comparison</h2>
+    <p class="text-muted">Compare the performance of all applied algorithms using standard evaluation metrics.</p>
+    <div id="comparison-section" class="mt-4">
+        <!-- Comparison results will be inserted here -->
+    </div>
+
+    {% endif %}
+    <!-- End of dataset content -->
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
   function attachFormListener(formId, sectionId, endpoint) {
       const form = document.getElementById(formId);
       if (form) {
           form.addEventListener('submit', function(event) {
-              event.preventDefault(); // Prevent the default form submission
-
+              event.preventDefault();
               const formData = new FormData(this);
 
               fetch(endpoint, {
@@ -245,23 +292,37 @@
               })
               .then(response => response.text())
               .then(html => {
-                  // Update only the specified section with the new content
                   document.getElementById(sectionId).innerHTML = html;
+                  // Reload comparison if available
+                  loadComparison();
               })
               .catch(error => console.error('Error:', error));
           });
       }
   }
 
+  function loadComparison() {
+      fetch('{{ url_for("get_comparison") }}', {method: 'GET'})
+      .then(response => response.text())
+      .then(html => {
+          const compSection = document.getElementById('comparison-section');
+          if (compSection) {
+              compSection.innerHTML = html;
+          }
+      })
+      .catch(error => console.error('Error loading comparison:', error));
+  }
+
   // Attach listeners for forms
-  attachFormListener('scatter-form', 'scatter-plot-section', '{{ url_for("generate_scatter") }}')
-  attachFormListener('kmeans-form', 'kmeans-results-section', '{{ url_for("apply_kmeans") }}')
-  attachFormListener('agnes-form', 'agnes-results-section', '{{ url_for("apply_agnes") }}')
-  attachFormListener('diana-form', 'diana-results-section', '{{ url_for("apply_diana") }}')
+  attachFormListener('scatter-form', 'scatter-plot-section', '{{ url_for("generate_scatter") }}');
+  attachFormListener('kmeans-form', 'kmeans-results-section', '{{ url_for("apply_kmeans") }}');
+  attachFormListener('agnes-form', 'agnes-results-section', '{{ url_for("apply_agnes") }}');
+  attachFormListener('diana-form', 'diana-results-section', '{{ url_for("apply_diana") }}');
   attachFormListener('k-distance-form', 'k-distance-results-section', '{{ url_for("generate_k_distance") }}');
-  attachFormListener('dbscan-form', 'dbscan-results-section', '{{ url_for("apply_dbscan") }}')
+  attachFormListener('dbscan-form', 'dbscan-results-section', '{{ url_for("apply_dbscan") }}');
   attachFormListener('kmedoids-form', 'kmedoids-results-section', '{{ url_for("apply_kmedoids") }}');
   attachFormListener('missing-values-form', 'missing-values-results-section', '{{ url_for("handle_missing_values") }}');
 </script>
+
 </body>
 </html>

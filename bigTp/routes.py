@@ -15,10 +15,10 @@ from scipy.cluster.hierarchy import linkage, dendrogram
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 from sklearn_extra.cluster import KMedoids  # Import K-Medoids
-import matplotlib.pyplot as plt
-from collections import Counter
 import matplotlib
-matplotlib.use('Agg') 
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from collections import Counter 
 from matplotlib import rcParams
 rcParams['font.family'] = 'DejaVu Sans'
 
@@ -236,6 +236,7 @@ def apply_kmeans_show_classes(df, data, n_clusters, class_col_candidates=['Class
     metrics_dict = compute_clustering_metrics(data, labels, display=True)
 
     # Affichage : scatter plot sur les 2 premières dimensions
+    plt.clf()
     plt.figure(figsize=(8, 6))
     scatter = plt.scatter(data.iloc[:, 0], data.iloc[:, 1], c=labels, cmap='viridis', edgecolor='k', label='Clusters')
     plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1],
@@ -328,6 +329,7 @@ def perform_kmedoids(df, data, n_clusters):
     metrics_dict = compute_clustering_metrics(data, labels, display=True)
 
     # Visualize the clusters
+    plt.clf()
     plt.figure(figsize=(8, 6))
     scatter = plt.scatter(data[:, 0], data[:, 1], c=labels, cmap='viridis', edgecolor='k', label='Clusters')
     plt.scatter(kmedoids.cluster_centers_[:, 0], kmedoids.cluster_centers_[:, 1],
@@ -364,6 +366,7 @@ def apply_agnes_and_plot_dendrogram(data, n_clusters=3, method='ward'):
     linked = linkage(data, method=method)
 
     # 2. Tracer le dendrogramme
+    plt.clf()
     plt.figure(figsize=(10, 5))
     dendrogram(linked, orientation='top', distance_sort='descending', show_leaf_counts=True)
     
@@ -539,6 +542,7 @@ def plot_clusters_2d(data, labels, title="Visualisation des clusters"):
     colors = plt.cm.tab10(np.linspace(0, 1, n_clusters))
     
     # Tracer les points
+    plt.clf()
     plt.figure(figsize=(10, 8))
     for i, color in zip(unique_labels, colors):
         cluster_points = data_2d[labels == i]  # Ensure this is used only for indexing
@@ -555,7 +559,6 @@ def plot_clusters_2d(data, labels, title="Visualisation des clusters"):
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.7)
     plt.tight_layout()
-    plt.show()
 
 def plot_k_distance_graph(data, k=4, n_points=None):
     """
@@ -576,6 +579,7 @@ def plot_k_distance_graph(data, k=4, n_points=None):
             k_distances_display = k_distances
 
         # Plot the k-distance graph
+        plt.clf()
         plt.figure(figsize=(12, 7))
         plt.plot(range(len(k_distances_display)), k_distances_display, 'b-')
         plt.xlabel('Points triés par distance')
@@ -991,6 +995,7 @@ def plot_dbscan_clusters(data, labels, eps, min_pts, target_clusters=None):
     n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)
     
     # Tracer les points
+    plt.clf()
     plt.figure(figsize=(12, 9))
     
     # Palette de couleurs
@@ -1054,7 +1059,6 @@ def plot_dbscan_clusters(data, labels, eps, min_pts, target_clusters=None):
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.grid(True, linestyle='--', alpha=0.7)
     plt.tight_layout()
-    plt.show()
     
     # Afficher des statistiques sur les clusters
     print(f"\nStatistiques des clusters ({n_clusters} clusters, {noise_percent:.1f}% bruit):")
@@ -1079,6 +1083,38 @@ def plot_dbscan_clusters(data, labels, eps, min_pts, target_clusters=None):
         print(f"  Ratio max/min: {size_ratio:.2f}")
         print(f"  Écart-type des tailles: {size_std:.2f}")
         print(f"  Coefficient de variation: {size_cv:.2f}")
+
+def update_session_comparison(algo_name, labels, data, min_clusters=2):
+    comparison = session.get('comparison', {})
+    
+    unique_labels = set(labels)
+    n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)
+    
+    metrics_dict = {
+        'n_clusters': n_clusters,
+        'Silhouette Score': None,
+        'Davies-Bouldin Index': None,
+        'Calinski-Harabasz Index': None
+    }
+    
+    if n_clusters >= min_clusters:
+        if isinstance(labels, list):
+            labels = np.array(labels)
+        if isinstance(data, pd.DataFrame):
+            data = data.values
+            
+        non_noise = labels != -1
+        if sum(non_noise) > min_clusters:
+            try:
+                metrics_dict['Silhouette Score'] = float(silhouette_score(data[non_noise], labels[non_noise]))
+                metrics_dict['Davies-Bouldin Index'] = float(davies_bouldin_score(data[non_noise], labels[non_noise]))
+                metrics_dict['Calinski-Harabasz Index'] = float(calinski_harabasz_score(data[non_noise], labels[non_noise]))
+            except:
+                pass
+                
+    comparison[algo_name] = metrics_dict
+    session['comparison'] = comparison
+    session.modified = True
 
 @app.route('/handle_missing_values', methods=['POST'])
 def handle_missing_values():
@@ -1210,6 +1246,9 @@ def apply_dbscan():
         plt.savefig(dbscan_image_path)
         plt.close()
 
+        # Update comparison in session
+        update_session_comparison('DBSCAN', labels, data)
+
         # Return the partial template for DBSCAN results
         return render_template(
             'dbscan_partial.html',
@@ -1245,6 +1284,9 @@ def apply_diana():
         plt.savefig(diana_image_path)
         plt.close()
 
+        # Update comparison in session
+        update_session_comparison('DIANA', labels, data)
+
         # Return the partial template for DIANA results
         return render_template(
             'diana_partial.html',
@@ -1271,6 +1313,9 @@ def apply_agnes():
 
         # Apply AGNES and generate the dendrogram
         labels, dendrogram_image = apply_agnes_and_plot_dendrogram(data, n_clusters, method)
+
+        # Update comparison in session
+        update_session_comparison('AGNES', labels, data)
 
         # Return the partial template for AGNES results
         return render_template(
@@ -1329,12 +1374,19 @@ def apply_kmedoids():
         # Call the renamed function
         df_clustered, metrics_dict, kmedoids_image = perform_kmedoids(df, data, n_clusters)
 
+        # Update comparison in session
+        update_session_comparison('K-Medoids', df_clustered['Cluster'].values, data)
+
+        # Calculate labels for the template
+        labels_dict = df_clustered['Cluster'].value_counts().to_dict()
+
         # Return the partial template for K-Medoids results
         return render_template(
             'kmedoids_partial.html',
             kmedoids_image=kmedoids_image,
-            clustered_data=df_clustered.to_html(classes='table table-striped', index=False),
+            clustered_data=df_clustered.head(8).to_html(classes='table table-striped', index=False),
             metrics=metrics_dict,
+            labels=labels_dict,
             time=time.time()
         )
     except Exception as e:
@@ -1357,14 +1409,29 @@ def apply_kmeans():
         # Apply K-Means and generate the clustering visualization
         df_clustered, metrics_dict, kmeans_image = apply_kmeans_show_classes(df, data, n_clusters)
 
+        # Update comparison in session
+        update_session_comparison('K-Means', df_clustered['Cluster'].values, data)
+
+        # Calculate labels for the template
+        labels_dict = df_clustered['Cluster'].value_counts().to_dict()
+
         # Return the partial template for K-Means results
         return render_template(
             'kmeans_partial.html',
             kmeans_image=kmeans_image,
-            clustered_data=df_clustered.to_html(classes='table table-striped', index=False),
+            clustered_data=df_clustered.head(8).to_html(classes='table table-striped', index=False),
             metrics=metrics_dict,
+            labels=labels_dict,
             time=time.time
         )
+    except Exception as e:
+        return str(e), 500
+
+@app.route('/get_comparison', methods=['GET'])
+def get_comparison():
+    try:
+        comparison = session.get('comparison', {})
+        return render_template('comparison_partial.html', comparison=comparison)
     except Exception as e:
         return str(e), 500
 

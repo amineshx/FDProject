@@ -1,18 +1,85 @@
 {% if dbscan_image %}
-    <h2>DBSCAN Clustering Visualization</h2>
-    <img src="{{ url_for('static', filename=dbscan_image) }}?v={{ time }}" alt="DBSCAN Clustering" class="img-fluid">
-{% endif %}
+<div>
+  <div class="alert alert-info alert-sm py-2 mb-3">
+    <i class="bi bi-info-circle me-2"></i>
+    All <strong>{{ n_features }}</strong> numeric features used for clustering.
+    Visualization reduced to 2D via PCA.
+  </div>
 
-{% if metrics %}
-    <h2 class="mt-5">Clustering Metrics</h2>
-    <ul>
-        <li><strong>Number of Clusters:</strong> {{ metrics.n_clusters }}</li>
-        <li><strong>Noise Ratio:</strong> {{ metrics.noise_ratio|round(3) }}</li>
-        {% if metrics.silhouette %}
-            <li><strong>Silhouette Score:</strong> {{ metrics.silhouette|round(3) }}</li>
-        {% endif %}
-        {% if metrics.calinski %}
-            <li><strong>Calinski-Harabasz Index:</strong> {{ metrics.calinski|round(3) }}</li>
-        {% endif %}
-    </ul>
+  <h5 class="fw-semibold mb-2">DBSCAN Clustering Visualization</h5>
+  <img src="{{ url_for('static', filename=dbscan_image) }}?v={{ time }}"
+       alt="DBSCAN Clustering" class="result-img w-100 mb-4">
+
+  <div class="row g-3 mb-4">
+    <div class="col-12"><h5 class="fw-semibold">Clustering Summary</h5></div>
+    <div class="col-md-4">
+      <div class="metric-card">
+        <div class="label">Number of Clusters</div>
+        <div class="value">{{ metrics.n_clusters }}</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="metric-card">
+        <div class="label">Noise Points</div>
+        <div class="value">{{ (metrics.noise_ratio * 100)|round(2) }}%</div>
+      </div>
+    </div>
+    {% if metrics.silhouette %}
+    <div class="col-md-4">
+      <div class="metric-card">
+        <div class="label">Silhouette Score</div>
+        <div class="value">{{ metrics.silhouette|round(3) }}</div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if metrics.calinski %}
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="metric-card">
+        <div class="label">Calinski-Harabasz Index</div>
+        <div class="value">{{ metrics.calinski|round(3) }}</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="alert alert-secondary py-2 small">
+    <strong>DBSCAN Parameters:</strong> Density-based clustering that finds core points and expands to neighboring points &nbsp;|&nbsp;
+    Noise Points → Data points not belonging to any cluster
+  </div>
+
+  <h5 class="fw-semibold mt-3 mb-2">Cluster Distribution</h5>
+  <div class="table-responsive">
+    <table class="table table-sm table-striped">
+      <thead><tr><th>Cluster</th><th>Points</th><th>Proportion</th></tr></thead>
+      <tbody>
+        {% set total = labels.values()|sum %}
+        {% for label, count in labels.items() %}
+        <tr>
+          <td>
+            {% if label == -1 %}
+              <span class="badge" style="background-color: #e74c3c;">Noise</span>
+            {% else %}
+              <span class="badge bg-primary">Cluster {{ label }}</span>
+            {% endif %}
+          </td>
+          <td>{{ count }}</td>
+          <td>
+            <div class="progress" style="height:14px;min-width:80px">
+              {% set w_pct = (count/total*100)|round(1) %}
+              {% set w_style = 'style="width: ' ~ w_pct ~ '%;"' %}
+              <div class="progress-bar" {{ w_style | safe }}>
+                {{ (count/total*100)|round(1) }}%
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+        <tr class="table-secondary fw-bold"><td>Total</td><td>{{ total }}</td><td>100%</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endif %}

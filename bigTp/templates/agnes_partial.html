@@ -1,13 +1,71 @@
 {% if dendrogram_image %}
-    <h2>AGNES Dendrogram</h2>
-    <img src="{{ url_for('static', filename=dendrogram_image) }}?v={{ time }}" alt="AGNES Dendrogram" class="img-fluid">
-{% endif %}
+<div>
+  <div class="alert alert-info alert-sm py-2 mb-3">
+    <i class="bi bi-info-circle me-2"></i>
+    All <strong>{{ n_features }}</strong> numeric features used for clustering.
+    <strong>Linkage method:</strong> {{ method }}.
+  </div>
 
-{% if labels %}
-    <h2 class="mt-5">Cluster Distribution</h2>
-    <ul>
+  <h5 class="fw-semibold mb-2">Dendrogram Visualization</h5>
+  <p class="small text-muted">The dendrogram shows the hierarchical clustering process. The height of each merger indicates the distance between clusters.</p>
+  <img src="{{ url_for('static', filename=dendrogram_image) }}?v={{ time }}"
+       alt="AGNES Dendrogram" class="result-img w-100 mb-4">
+
+  <div class="row g-3 mb-4">
+    <div class="col-12"><h5 class="fw-semibold">Clustering Metrics</h5></div>
+    {% if metrics %}
+      {% for key, value in metrics.items() %}
+        {% if value is not none and value != 'Note' %}
+        <div class="col-md-4">
+          <div class="metric-card">
+            <div class="label">{{ key }}</div>
+            <div class="value">{{ value|round(3) if value is number else value }}</div>
+          </div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  {% if metrics %}
+  <div class="alert alert-secondary py-2 small">
+    <strong>Interpretation guide:</strong>
+    Silhouette → higher is better (range −1 to 1) &nbsp;|&nbsp;
+    Davies-Bouldin → lower is better &nbsp;|&nbsp;
+    Calinski-Harabasz → higher is better
+  </div>
+  {% endif %}
+
+  <h5 class="fw-semibold mt-3 mb-2">Cluster Distribution</h5>
+  <div class="table-responsive">
+    <table class="table table-sm table-striped">
+      <thead><tr><th>Cluster</th><th>Points</th><th>Proportion</th></tr></thead>
+      <tbody>
+        {% set total = labels.values()|sum %}
         {% for label, count in labels.items() %}
-            <li><strong>Cluster {{ label }}:</strong> {{ count }} points</li>
+        <tr>
+          <td><span class="badge bg-primary">Cluster {{ label }}</span></td>
+          <td>{{ count }}</td>
+          <td>
+            <div class="progress" style="height:14px;min-width:80px">
+              {% set w_pct = (count/total*100)|round(1) %}
+              {% set w_style = 'style="width: ' ~ w_pct ~ '%;"' %}
+              <div class="progress-bar" {{ w_style | safe }}>
+                {{ (count/total*100)|round(1) }}%
+              </div>
+            </div>
+          </td>
+        </tr>
         {% endfor %}
-    </ul>
+        <tr class="table-secondary fw-bold"><td>Total</td><td>{{ total }}</td><td>100%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="alert alert-light border mt-3 small">
+    <strong>ℹ️ AGNES Algorithm:</strong><br>
+    Agglomerative Hierarchical Clustering starts with each point as its own cluster and iteratively merges the closest clusters.
+    The <strong>{{ method }}</strong> method is used to measure the distance between clusters.
+  </div>
+</div>
 {% endif %}

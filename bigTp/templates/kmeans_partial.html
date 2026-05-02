@@ -1,21 +1,74 @@
 {% if kmeans_image %}
-    <h2>Clustering Visualization</h2>
-    <img src="{{ url_for('static', filename=kmeans_image) }}?v={{ time() }}" alt="K-Means Clustering" class="img-fluid">
-{% endif %}
+<div>
+  <div class="alert alert-info alert-sm py-2 mb-3">
+    <i class="bi bi-info-circle me-2"></i>
+    All <strong>{{ n_features }}</strong> numeric features used for clustering.
+    Visualization reduced to 2D via PCA.
+  </div>
 
-{% if metrics %}
-    <h2 class="mt-5">Clustering Metrics</h2>
-    <ul>
-        {% for key, value in metrics.items() %}
-            <li><strong>{{ key }}:</strong> {{ value|round(3) }}</li>
+  <h5 class="fw-semibold mb-2">Clustering Visualization</h5>
+  <img src="{{ url_for('static', filename=kmeans_image) }}?v={{ time() }}"
+       alt="K-Means Clustering" class="result-img w-100 mb-4">
+
+  <div class="row g-3 mb-4">
+    <div class="col-12"><h5 class="fw-semibold">Clustering Metrics</h5></div>
+    {% if metrics %}
+      {% for key, value in metrics.items() %}
+        {% if value is not none and key != 'Note' %}
+        <div class="col-md-4">
+          <div class="metric-card">
+            <div class="label">{{ key }}</div>
+            <div class="value">{{ value|round(3) if value is number else value }}</div>
+          </div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  {% if metrics %}
+  <div class="alert alert-secondary py-2 small">
+    <strong>Interpretation guide:</strong>
+    Silhouette → higher is better (range −1 to 1) &nbsp;|&nbsp;
+    Davies-Bouldin → lower is better &nbsp;|&nbsp;
+    Calinski-Harabasz → higher is better
+  </div>
+  {% endif %}
+
+  <h5 class="fw-semibold mt-3 mb-2">Cluster Distribution</h5>
+  <div class="table-responsive">
+    <table class="table table-sm table-striped">
+      <thead><tr><th>Cluster</th><th>Points</th><th>Proportion</th></tr></thead>
+      <tbody>
+        {% set total = labels.values()|sum %}
+        {% for label, count in labels.items() %}
+        <tr>
+          <td><span class="badge bg-primary">Cluster {{ label }}</span></td>
+          <td>{{ count }}</td>
+          <td>
+            <div class="progress" style="height:14px;min-width:80px">
+              {% set w_pct = (count/total*100)|round(1) %}
+              {% set w_style = 'style="width: ' ~ w_pct ~ '%;"' %}
+              <div class="progress-bar" {{ w_style | safe }}>
+                {{ (count/total*100)|round(1) }}%
+              </div>
+            </div>
+          </td>
+        </tr>
         {% endfor %}
-    </ul>
-{% endif %}
+        <tr class="table-secondary fw-bold"><td>Total</td><td>{{ total }}</td><td>100%</td></tr>
+      </tbody>
+    </table>
+  </div>
 
-{% if clustered_data %}
-    <h2 class="mt-5">Clustered Data</h2>
-    <div class="table-responsive">
-        {{ clustered_data|safe }}
-    </div>
-    <a href="{{ url_for('download_clustered_data') }}" class="btn btn-success mt-3">Download Clustered Data</a>
+  {% if clustered_data %}
+  <h5 class="fw-semibold mt-4 mb-2">Clustered Data</h5>
+  <div class="table-responsive">
+    {{ clustered_data|safe }}
+  </div>
+  <a href="{{ url_for('download_clustered_data') }}" class="btn btn-success mt-3">
+    <i class="bi bi-download me-2"></i>Download Clustered Data
+  </a>
+  {% endif %}
+</div>
 {% endif %}
